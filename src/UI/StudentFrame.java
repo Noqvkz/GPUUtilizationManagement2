@@ -93,4 +93,16 @@ public class StudentFrame extends JFrame {
             }
         });
 
+         JPanel header = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
+        JButton saveButton = new JButton("Save now");
+        saveButton.addActionListener(e -> saveData());
+
+        JButton logoutButton = new JButton("Log out");
+        logoutButton.addActionListener(e -> logout());
+
+        header.add(saveButton);
+        header.add(logoutButton);
+        add(header, BorderLayout.NORTH);
+
        
