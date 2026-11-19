@@ -105,4 +105,84 @@ public class StudentFrame extends JFrame {
         header.add(logoutButton);
         add(header, BorderLayout.NORTH);
 
+
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.addTab("Home", makeHomePanel());
+        tabs.addTab("Submit job", makeSubmitPanel());
+        tabs.addTab("My jobs", makeJobsPanel());
+        add(tabs, BorderLayout.CENTER);
+
+        sizeChoice.addActionListener(e -> updateDurationLabel());
+
+        updateDurationLabel();
+        refreshScreen();
+    }
+
+    private JPanel makeHomePanel() {
+        JPanel panel = new JPanel(new java.awt.GridLayout(0, 1, 8, 8));
+
+        welcomeLabel.setText(
+                "Welcome, " + student.getName()
+                        + "  |  Student ID: " + student.getUniversityId());
+
+        panel.add(welcomeLabel);
+        panel.add(clockLabel);
+        panel.add(balanceLabel);
+
+        return panel;
+    }
+
+    private JPanel makeSubmitPanel() {
+        JPanel panel = new JPanel(new java.awt.GridLayout(0, 2, 8, 8));
+
+        panel.add(new JLabel("Job title:"));
+        panel.add(titleField);
+
+        panel.add(new JLabel("Application name:"));
+        panel.add(applicationField);
+
+        panel.add(new JLabel("Description:"));
+        panel.add(new JScrollPane(descriptionArea));
+
+        panel.add(new JLabel("Task size:"));
+        panel.add(sizeChoice);
+
+        panel.add(new JLabel("Estimated duration:"));
+        panel.add(durationLabel);
+
+        JButton submitButton = new JButton("Submit job");
+        submitButton.addActionListener(e -> submitJob());
+
+        panel.add(new JLabel(""));
+        panel.add(submitButton);
+
+        return panel;
+    }
+
+    private JPanel makeJobsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(5, 5));
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        controls.add(new JLabel("Search ID/title:"));
+        controls.add(searchField);
+        controls.add(statusFilter);
+
+        JButton searchButton = new JButton("Search");
+        searchButton.addActionListener(e -> showJobs());
+        controls.add(searchButton);
+
+        JButton refreshButton = new JButton("Refresh");
+        refreshButton.addActionListener(e -> refreshScreen());
+        controls.add(refreshButton);
+
+        JButton cancelButton = new JButton("Cancel selected job");
+        cancelButton.addActionListener(e -> cancelSelectedJob());
+        controls.add(cancelButton);
+
+        panel.add(controls, BorderLayout.NORTH);
+        panel.add(new JScrollPane(jobTable), BorderLayout.CENTER);
+
+        return panel;
+    }
+
        
