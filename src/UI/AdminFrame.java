@@ -287,3 +287,15 @@ private void showFirstClockSetup(){
     setClock();
   }
 }
+
+private void advanceMinute(){
+  try{
+    scheduler.advanceMinute(actor);
+    saveData();
+    refreshAll();
+  }catch (RuntimeException error){
+    showError("Could not advance clock", error);
+  }
+}
+    
+
