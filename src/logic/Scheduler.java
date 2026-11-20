@@ -541,4 +541,71 @@ public class Scheduler {
                 state.getCurrentTime(),
                 getPredictedStart(jobId)).toMinutes();
     }
+
+    public Double getUtilizationPercent() {
+
+        // There is no utilization value before the clock is initialized.
+        if (!state.isClockSet()) {
+            return null;
+        }
+
+        long elapsed = Duration.between(
+                state.getSimulationStart(),
+                state.getCurrentTime()).toMinutes();
+
+        // Avoid division by zero at the beginning of the simulation.
+        // The GUI should display N/A when this method returns null.
+        if (elapsed == 0) {
+            return null;
+        }
+
+        long busyMinutes = 0;
+
+        // Include completed work, current running time and time executed
+        // before cancellation. Queued jobs contribute zero.
+        for (Job job : state.getJobs()) {
+            busyMinutes = busyMinutes
+                    + getRuntimeMinutes(job.getJobId());
+        }
+
+        // Four GPUs provide four GPU minutes per simulation minute.
+        return busyMinutes * 100.0 / (4.0 * elapsed);
+    }
+
+    public int getChargedMinutes(String jobId) {
+
+        Job job = findJob(jobId);
+
+        // Completed or cancelled jobs are charged for actual execution.
+        if (job.getStatus() == JobStatus.COMPLETED
+                || job.getStatus() == JobStatus.CANCELLED) {
+
+            return (int) getRuntimeMinutes(jobId);
+        }
+
+        // Queued and running jobs still have reserved minutes.
+        return 0;
+    }
+
+    public long getQueueWaitMinutes(String jobId) {
+
+        Job job = findJob(jobId);
+
+        // For a queued job, show how much longer it is predicted to wait.
+        if (job.getStatus() == JobStatus.QUEUED) {
+            return getRemainingWait(jobId);
+        }
+
+        // For a job that started, show its actual total queue wait.
+        if (job.getStartTime() != null) {
+            return Duration.between(
+                    job.getSubmissionTime(),
+                    job.getStartTime()).toMinutes();
+        }
+
+        // A job cancelled before starting waited until its cancellation.
+        return Duration.between(
+                job.getSubmissionTime(),
+                job.getCancellationTime()).toMinutes();
+    }
 }
