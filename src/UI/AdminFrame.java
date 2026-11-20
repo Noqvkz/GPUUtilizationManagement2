@@ -297,5 +297,29 @@ private void advanceMinute(){
     showError("Could not advance clock", error);
   }
 }
-    
 
+
+private void approveRequest(){
+  int row = requestTable.getSelectRow();
+
+  if(row < 0 || row >= shownRequests.size()){
+    return;
+  }
+
+  String answer = JOptionPane.showInputDialog(this, "Initial minutes for this student:", "100");
+
+  if(answer == null){
+    return;
+  }
+
+  try{
+    int minutes = Interger.parseInt(answer);
+    accounts.approveRequest(actor, shownRequests.get(row), minutes);
+    saveData();
+    refreshAll();
+  }catch(NumberFormatException error){
+    JOptionPane.showMessageDialog(this, "Enter a whole number of minute.");
+  }catch(RuntimeException error){
+    showError("Could not approve request", error);
+  }
+}
