@@ -185,4 +185,31 @@ public class StudentFrame extends JFrame {
         return panel;
     }
 
+    private void submitJob() {
+        if (!state.isClockSet()) {
+            JOptionPane.showMessageDialog(this, "The administrator must set the simulation clock before jobs can be submitted.");
+            return;
+        }
+
+        TaskSize size = (TaskSize) sizeChoice.getSelectedItem();
+        int duration = durationForSize(size);
+
+        if (duration <= 0) {
+            JOptionPane.showMessageDialog(this, "Select a valid task size. ");
+            return;
+        }
+
+        TimeAllowance allowance = student.getAllowance();
+        int available = allowance.getAvailable();
+
+        if (duration > available) {
+            JOptionPane.showMessageDialog(this, "This job needs" + duration + "minutes, but you have only" + available + 
+                                          " minutes available.", "Not enough GPU time", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int after = available - duration;
+
+        
+
        
