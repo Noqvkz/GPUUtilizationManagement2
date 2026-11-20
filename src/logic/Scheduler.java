@@ -421,4 +421,124 @@ public class Scheduler {
 
         return count;
     }
+    public int getQueuePosition(String jobId) {
+
+        Job target = findJob(jobId);
+        ArrayList<Job> queue = getQueuedJobs();
+
+        // Queue positions begin at 1.
+        for (int i = 0; i < queue.size(); i++) {
+            if (queue.get(i) == target) {
+                return i + 1;
+            }
+        }
+
+        // Zero means the job is not currently queued.
+        return 0;
+    }
+
+    public LocalDateTime getPredictedStart(String jobId) {
+
+        Job target = findJob(jobId);
+
+        // Jobs that already started keep their actual start time.
+        // A job cancelled before starting has a null start time.
+        if (target.getStatus() != JobStatus.QUEUED) {
+            return target.getStartTime();
+        }
+
+        requireClock();
+
+        // Copy each GPU's next available time.
+        // Predictions must not change real GPU assignments or job records.
+        LocalDateTime[] freeAt = new LocalDateTime[4];
+
+        for (int i = 0; i < 4; i++) {
+
+            GPU gpu = state.getGpus().get(i);
+
+            // A free GPU is available now.
+            freeAt[i] = state.getCurrentTime();
+
+            if (!gpu.isFree()) {
+
+                Job running = gpu.getCurrentJob();
+
+                LocalDateTime end = running.getStartTime().plusMinutes(
+                        running.getEstimatedDuration());
+
+                // A busy GPU becomes available when its current job finishes.
+                if (end.isAfter(freeAt[i])) {
+                    freeAt[i] = end;
+                }
+            }
+        }
+
+        // Include every job ahead of the target in FCFS order.
+        for (Job waiting : getQueuedJobs()) {
+
+            int earliest = 0;
+
+            for (int i = 1; i < 4; i++) {
+
+                // Choose the earliest available GPU.
+                // If times match, choose the smaller GPU ID.
+                if (freeAt[i].isBefore(freeAt[earliest])
+                        || (freeAt[i].equals(freeAt[earliest])
+                        && state.getGpus().get(i).getId()
+                        < state.getGpus().get(earliest).getId())) {
+
+                    earliest = i;
+                }
+            }
+
+            LocalDateTime predictedStart = freeAt[earliest];
+
+            if (waiting == target) {
+                return predictedStart;
+            }
+
+            // Reserve time only in the copied schedule for jobs ahead.
+            freeAt[earliest] = predictedStart.plusMinutes(
+                    waiting.getEstimatedDuration());
+        }
+
+        throw new IllegalStateException(
+                "The queued job was not found in the queue.");
+    }
+
+    public LocalDateTime getPredictedFinish(String jobId) {
+
+        Job job = findJob(jobId);
+
+        // Queued jobs finish their duration after the predicted start.
+        if (job.getStatus() == JobStatus.QUEUED) {
+            return getPredictedStart(jobId).plusMinutes(
+                    job.getEstimatedDuration());
+        }
+
+        // Running jobs use their actual start time.
+        if (job.getStatus() == JobStatus.RUNNING) {
+            return job.getStartTime().plusMinutes(
+                    job.getEstimatedDuration());
+        }
+
+        // Completed and cancelled jobs keep their recorded finish time.
+        // A queued cancellation has no execution finish time.
+        return job.getFinishTime();
+    }
+
+    public long getRemainingWait(String jobId) {
+
+        Job job = findJob(jobId);
+
+        // Only queued jobs are still waiting to start.
+        if (job.getStatus() != JobStatus.QUEUED) {
+            return 0;
+        }
+
+        return Duration.between(
+                state.getCurrentTime(),
+                getPredictedStart(jobId)).toMinutes();
+    }
 }
