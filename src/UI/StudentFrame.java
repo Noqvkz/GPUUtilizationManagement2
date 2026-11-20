@@ -21,8 +21,7 @@ import model.User;
 import storage.DataStore;
 
 public class StudentFrame extends JFrame {
-    private static final DateTimeFormatter DATE_FORMAT =
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private User actor;
     private AccountService accounts;
@@ -36,29 +35,21 @@ public class StudentFrame extends JFrame {
     private JTextField applicationField = new JTextField(20);
     private JTextArea descriptionArea = new JTextArea(4, 20);
 
-    private JComboBox<TaskSize> sizeChoice =
-            new JComboBox<TaskSize>(TaskSize.values());
+    private JComboBox<TaskSize> sizeChoice = new JComboBox<TaskSize>(TaskSize.values());
 
     private JLabel durationLabel = new JLabel();
 
     private JTextField searchField = new JTextField(15);
 
-    private JComboBox<String> statusFilter = new JComboBox<String>(
-            new String[] {
-                    "All statuses", "QUEUED", "RUNNING",
-                    "COMPLETED", "CANCELLED"
-            });
+    private JComboBox<String> statusFilter = new JComboBox<String>( new String[] {  "All statuses", "QUEUED", "RUNNING","COMPLETED", "CANCELLED" });
 
     private JLabel welcomeLabel = new JLabel();
     private JLabel balanceLabel = new JLabel();
     private JLabel clockLabel = new JLabel();
 
-    private DefaultTableModel jobTableModel = new DefaultTableModel(
-            new String[] {
-                    "Job ID", "Title", "Application", "Size", "Status",
-                    "GPU", "Submitted", "Start", "Finish", "Wait",
-                    "Queue position", "Predicted start", "Predicted finish"
-            }, 0) {
+    private DefaultTableModel jobTableModel = new DefaultTableModel( new String[] { 
+        "Job ID", "Title", "Application", "Size", "Status","GPU", "Submitted", "Start", "Finish", "Wait", "Queue position", "Predicted start",
+                        "Predicted finish"}, 0) {
         public boolean isCellEditable(int row, int column) {
             return false;
         }
@@ -68,8 +59,7 @@ public class StudentFrame extends JFrame {
     private ArrayList<Job> allJobs = new ArrayList<Job>();
     private ArrayList<Job> shownJobs = new ArrayList<Job>();
 
-    public StudentFrame(User actor, AccountService accounts, Scheduler scheduler,
-                        DataStore store, AppState state, LoginFrame loginFrame) {
+    public StudentFrame(User actor, AccountService accounts, Scheduler scheduler, DataStore store, AppState state, LoginFrame loginFrame) {
         this.actor = actor;
         this.accounts = accounts;
         this.scheduler = scheduler;
@@ -121,9 +111,7 @@ public class StudentFrame extends JFrame {
     private JPanel makeHomePanel() {
         JPanel panel = new JPanel(new java.awt.GridLayout(0, 1, 8, 8));
 
-        welcomeLabel.setText(
-                "Welcome, " + student.getName()
-                        + "  |  Student ID: " + student.getUniversityId());
+        welcomeLabel.setText( "Welcome, " + student.getName() + "  |  Student ID: " + student.getUniversityId());
 
         panel.add(welcomeLabel);
         panel.add(clockLabel);
@@ -210,6 +198,234 @@ public class StudentFrame extends JFrame {
 
         int after = available - duration;
 
-        
+         int answer = JOptionPane.showConfirmDialog(this, "Submit this " + size + " job?\n" + "Duration: " + duration + " minutes\n"
+                                                    + "Available after submitting: " + after + " minutes", "Confirm job", JOptionPane.YES_NO_OPTION);
 
-       
+        if (answer != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            scheduler.submitJob( actor, titleField.getText(), applicationField.getText(), descriptionArea.getText(), size);
+
+            saveData();
+
+            titleField.setText("");
+            applicationField.setText("");
+            descriptionArea.setText("");
+
+            refreshScreen();
+            
+        } catch (RuntimeException error) {
+            showError("Could not submit job", error);
+        }
+    }
+
+    private int durationForSize(TaskSize size) {
+        String name = size.toString().toUpperCase();
+
+        if (name.contains("VERY") || name.contains("EXTRA") || name.equals("XL") || name.contains("XLARGE")) {
+            return 60;
+        }
+
+        if (name.contains("LARGE") || name.equals("L")) {
+            return 30;
+        }
+
+        if (name.contains("MEDIUM") || name.equals("M")) {
+            return 15;
+        }
+
+        if (name.contains("SMALL") || name.equals("S")) {
+            return 5;
+        }
+
+        return 0;
+    }
+
+    private void updateDurationLabel() {
+        TaskSize size = (TaskSize) sizeChoice.getSelectedItem();
+        durationLabel.setText(durationForSize(size) + " minutes");
+    }
+
+    private void cancelSelectedJob() {
+        int row = jobTable.getSelectedRow();
+
+        if (row < 0 || row >= shownJobs.size()) {
+            JOptionPane.showMessageDialog(this, "Select a job first.");
+            return;
+        }
+
+        Job job = shownJobs.get(row);
+        String status = job.getStatus().toString();
+
+        if (!status.equals("QUEUED") && !status.equals("RUNNING")) {
+            JOptionPane.showMessageDialog(this, "Only queued or running jobs can be cancelled.");
+            return;
+        }
+
+        int reserved = durationForSize(job.getTaskSize());
+        int charged = 0;
+
+        if (status.equals("RUNNING")) {
+            charged = minutesBetween(job.getStartTime(), state.getCurrentTime());
+        }
+
+        int returned = Math.max(0, reserved - charged);
+
+        int answer = JOptionPane.showConfirmDialog(this, "Cancel job " + job.getJobId() + "?\n" + "Minutes charged: " + charged + "\n"
+                                                   + "Unused minutes returned: " + returned, "Confirm cancellation", JOptionPane.YES_NO_OPTION);
+
+        if (answer != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        String reason = JOptionPane.showInputDialog(this, "Reason for cancellation:");
+
+        if (reason == null) {
+            return;
+        }
+
+        try {
+            scheduler.cancelJob(actor, job.getJobId(), reason);
+            saveData();
+            refreshScreen();
+        } catch (RuntimeException error) {
+            showError("Could not cancel job", error);
+        }
+    }
+
+    private void refreshScreen() {
+        TimeAllowance allowance = student.getAllowance();
+
+        balanceLabel.setText("Allocated: " + allowance.getAllocated() + "   Used: " + allowance.getUsed() + "   Reserved: " + allowance.getReserved()
+                        + "   Available: " + allowance.getAvailable() + " minutes");
+
+        LocalDateTime time = state.getCurrentTime();
+
+        if (time == null) {
+            clockLabel.setText("Simulation clock: not set");
+        } else {
+            clockLabel.setText("Simulated time: " + time.format(DATE_FORMAT));
+        }
+
+        try {
+            allJobs = scheduler.getVisibleJobs(actor);
+            showJobs();
+        } catch (RuntimeException error) {
+            showError("Could not load jobs", error);
+        }
+    }
+
+    private void showJobs() {
+        String search = searchField.getText().trim().toLowerCase();
+        String selectedStatus = statusFilter.getSelectedItem().toString();
+
+        shownJobs = new ArrayList<Job>();
+        jobTableModel.setRowCount(0);
+
+        for (Job job : allJobs) {
+            String id = job.getJobId();
+            String title = job.getTitle();
+            String status = job.getStatus().toString();
+            String searchText = (id + " " + title).toLowerCase();
+
+            if (!searchText.contains(search)) {
+                continue;
+            }
+
+            if (!selectedStatus.equals("All statuses")
+                    && !selectedStatus.equals(status)) {
+                continue;
+            }
+
+            String gpu = gpuText(job);
+            String queue = "—";
+            String wait = "—";
+            String predictedStart = "—";
+            String predictedFinish = "—";
+
+            if (status.equals("QUEUED") && state.isClockSet()) {
+                try {
+                    queue = String.valueOf(scheduler.getQueuePosition(id));
+                    wait = scheduler.getRemainingWait(id) + " min";
+
+                    LocalDateTime start = scheduler.getPredictedStart(id);
+                    LocalDateTime finish = scheduler.getPredictedFinish(id);
+
+                    if (start != null) {
+                        predictedStart = "≈ " + start.format(DATE_FORMAT);
+                    }
+
+                    if (finish != null) {
+                        predictedFinish = "≈ " + finish.format(DATE_FORMAT);
+                    }
+                } catch (RuntimeException error) {
+                    wait = "Unavailable";
+                }
+            } else if (job.getStartTime() != null
+                    && job.getSubmissionTime() != null) {
+                wait = minutesBetween( job.getSubmissionTime(), job.getStartTime()) + " min";
+            }
+
+            shownJobs.add(job);
+
+            jobTableModel.addRow(new Object[] {id, title, job.getApplicationName(), job.getTaskSize(), status, gpu, formatTime(job.getSubmissionTime()),
+                                               formatTime(job.getStartTime()), formatTime(job.getFinishTime()), wait, queue, predictedStart, predictedFinish
+            });
+        }
+    }
+
+    private String formatTime(LocalDateTime time) {
+        if (time == null) {
+            return "—";
+        }
+
+        return time.format(DATE_FORMAT);
+    }
+
+    private String gpuText(Job job) {
+        String id = String.valueOf(job.getAssignedGpuId());
+
+        if (id.equalsIgnoreCase("null") || id.equals("0") || id.isBlank()) {
+            return "—";
+        }
+
+        if (id.toUpperCase().startsWith("GPU")) {
+            return id;
+        }
+
+        return "GPU " + id;
+    }
+
+    private int minutesBetween(LocalDateTime start, LocalDateTime finish) {
+        if (start == null || finish == null) {
+            return 0;
+        }
+
+        long minutes = Duration.between(start, finish).toMinutes();
+        return (int) Math.max(0, minutes);
+    }
+
+    private boolean saveData() {
+        try {
+            store.save(state);
+            return true;
+        } catch (IOException error) {
+            JOptionPane.showMessageDialog(this, "Could not save data. You can try again.\n" + error.getMessage(), "Save failed", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+    }
+
+    private void logout() {
+        if (saveData()) {
+            actor = null;
+            dispose();
+            loginFrame.showLogin();
+        }
+    }
+
+    private void showError(String title, RuntimeException error) {
+        JOptionPane.showMessageDialog(this, error.getMessage(), title, JOptionPane.ERROR_MESSAGE);
+    }
+}
