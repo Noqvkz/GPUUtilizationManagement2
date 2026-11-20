@@ -323,3 +323,19 @@ private void approveRequest(){
     showError("Could not approve request", error);
   }
 }
+
+private void rejectRequest(){
+  int row = requestTable.getSelectedRow();
+
+  if(row < 0 || row >= shownRequests.size()){
+    return;
+  }
+
+  try {
+    account.rejectRequest(actor, shownRequests.get(row));
+    saveData();
+    refreshAll();
+  }catch (RuntimeException error){
+    showError("Could not reject request", error);
+  }
+}
