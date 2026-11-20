@@ -238,3 +238,30 @@ public class AdminFrame extends JFrame {
 
     return panel;
  }
+
+  private JPanel makeJobPanel(){
+    JPanel panel = new JPanel(new BorderLayout());
+    JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+    controls.add(new JLabel("Search ID/title:"));
+    controls.add(jobSearch);
+    controls.add(jobStatusFilter);
+
+    JButton searchButton = new JButton("Search");
+    searchButton.addActionListener(e -> showJobs());
+
+    JButton cancelButton = new JButton("Cancel selected job");
+    cancelButton.addActionListener(e -> cancelJob());
+
+    JButtonrefreshButton = new JButton("Refresh");
+    refreshButton.addActionListener(e -> refreshJobs());
+
+    controls.add(searchButton);
+    controls.add(cancelButton);
+    controls.add(refreshButton);
+
+    panel.add(controls, BorderLayout.NORTH);
+    panel.add(new JScrollPane(jobTable), BorderLayout.CENTER);
+
+    return panel;
+  }
