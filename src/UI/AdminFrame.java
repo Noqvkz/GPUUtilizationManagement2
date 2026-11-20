@@ -465,5 +465,68 @@ private void cancelJob(){
     refreshJobs();
     refreshDashboard();
   }
+
+  private void refreshDashboard(){
+    LocalDateTime time = state.getCurrentTime();
+
+    clockLabel.setText(time == null ? "Not set" : time.format(DATE_FORMAT));
+
+    clockSpinner.setEnabled(!state.isClockSet());
+    setClockButton.setEnabled(!state.isClockSet());
+    advanceButton.setEnabled(state.isClockSet());
+
+    int queued = 0;
+    int running = 0;
+    int completed = 0;
+    int cancelled = 0;
   
-  
+    for (Job job : allJobs) {
+        String status = job.getStatus().toString();
+
+        if (status.equals("QUEUED")) queued++;
+        if (status.equals("RUNNING")) running++;
+        if (status.equals("COMPLETED")) completed++;
+        if (status.equals("CANCELLED")) cancelled++;
+      }
+
+      Double utilization = null;
+
+      try {
+        utilization = scheduler.getUtilizationPercent();
+    } catch (RuntimeException error) {
+        }
+
+    String utilizationText = "N/A";
+
+    if (utilization != null) {
+        utilizationText = String.format("%.1f%%", utilization);
+    }
+
+    countsLabel.setText("Running: " + running + "   Queued: " + queued + "   Completed: " + completed + "   Cancelled: " + cancelled + "   Busy GPUs: " 
+                        + running + "/" + state.getGpus().size() + "   Utilization: " + utilizationText);
+
+    StringBuilder gpuText = new StringBuilder();
+    for(int gpuId = 1; gpuId <= state.getGpus().size(); gpuId++){
+      Job current = findRunningJobOnGpu(gpuId);
+
+      if(current == null){
+        gpuText.append("GPU ").append(gpuId).append(": Free\n");
+      }else{
+        int runtime = minutesBetween(current.getStartTime(), time);
+        int remaining = Math.max(0, durationForSize(current.getTaskSize()) - runtime);
+
+        LocalDateTime finish = current.getStartTime().plusMinutes(durationForSize(current.getTaskSize()));
+
+        gpuText.append("GPU ").append(gpuId).append(": Busy with ").append(current.getJobId()).append("; remaining ").append(remaining)
+          .append(" min; finishes ").append(finish.format(DATE_FORMAT)).append("\n");
+            }
+        }
+
+        gpuDetails.setText(gpuText.toString());
+
+        showWaitingJobs();
+        showCompletedJobs();
+  }
+
+    
+
