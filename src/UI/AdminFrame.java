@@ -348,3 +348,36 @@ private void updateRequestButtons(){
   approveButton.setEnabled(pendiing);
   rejectButton.setEnabled(pending);
 }
+
+private void grantTime(){
+  int row = studentTable.getSelectedRow();
+
+  if(row < 0 || row >= shownStudents.size()){
+    JOptionPane.showMessageDialog(this, "Select a student first.");
+    return; 
+  }
+
+  String minutesText = JOptionPane.showInputDialog(this, "Extra minutes:", "30");
+
+  if(minutesText == null){
+    return;
+  }
+
+  String reason = JOptionPane.showInputDialog(this, "Reason for the extra time:");
+
+  if(reason == null){
+    return;
+  }
+
+  try{
+    int minutes = Integer.parseInt(minutesText);
+    Student student = shownStudents.get(row);
+    accounts.grantTime(actor, student.getUniversityId(), minutes, reason);
+    saveData();
+    refreshStudents();
+  }catch(NumberFormatException error){
+    JOptionPane.showMessageDialog(this, "Enter a whole number of minutes.");
+  }catch(RuntimeException error){
+    showError("Could not grant time", error);
+  }
+}
