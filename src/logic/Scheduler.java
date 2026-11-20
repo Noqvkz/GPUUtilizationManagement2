@@ -295,4 +295,130 @@ public class Scheduler {
         // Waiting time is excluded because counting starts at startTime.
         return Duration.between(job.getStartTime(), end).toMinutes();
     }
+
+    public void cancelJob(User actor, String jobId, String reason) {
+
+        Student caller = null;
+
+        // Administrators can cancel any active job.
+        // Other callers must be approved students.
+        if (actor != state.getAdministrator()) {
+            caller = requireStudent(actor);
+        }
+
+        requireClock();
+
+        Job job = findJob(jobId);
+
+        // Students can cancel only jobs belonging to their university ID.
+        if (caller != null
+                && !job.getStudentId().equals(caller.getUniversityId())) {
+
+            throw new SecurityException(
+                    "You can cancel only your own jobs.");
+        }
+
+        // This also stops completed or cancelled jobs being settled again.
+        if (job.getStatus() != JobStatus.QUEUED
+                && job.getStatus() != JobStatus.RUNNING) {
+
+            throw new IllegalStateException(
+                    "Only queued or running jobs can be cancelled.");
+        }
+
+        reason = requiredText(reason, "Cancellation reason");
+
+        // Queued jobs have zero runtime, so their cancellation is free.
+        int runtime = (int) getRuntimeMinutes(job.getJobId());
+
+        GPU assignedGpu = null;
+
+        if (job.getStatus() == JobStatus.RUNNING) {
+
+            // Find the GPU that is currently running this exact job.
+            for (GPU gpu : state.getGpus()) {
+                if (gpu.getCurrentJob() == job) {
+                    assignedGpu = gpu;
+                }
+            }
+
+            if (assignedGpu == null) {
+                throw new IllegalStateException(
+                        "The running job has no matching GPU.");
+            }
+        }
+
+        Student owner = findStudent(job.getStudentId());
+
+        // Save the cancellation user, reason and simulated time.
+        job.cancel(actor.getUsername(), reason, state.getCurrentTime());
+
+        // Release the full reservation and charge only time already run.
+        owner.getAllowance().settle(
+                job.getEstimatedDuration(), runtime);
+
+        if (assignedGpu != null) {
+            assignedGpu.release();
+        }
+
+        // Immediately give any free GPU to the next waiting job.
+        startWaitingJobs();
+    }
+
+    public ArrayList<Job> getVisibleJobs(User actor) {
+
+        Student student = null;
+
+        // The administrator receives all jobs.
+        // A student must be an approved account from the shared state.
+        if (actor != state.getAdministrator()) {
+            student = requireStudent(actor);
+        }
+
+        ArrayList<Job> result = new ArrayList<Job>();
+
+        for (Job job : state.getJobs()) {
+
+            // For students, include only jobs matching their university ID.
+            if (student == null
+                    || job.getStudentId().equals(student.getUniversityId())) {
+
+                result.add(job);
+            }
+        }
+
+        return result;
+    }
+
+    public int getJobCount(User actor, JobStatus status) {
+
+        // These totals are used on the administrator dashboard.
+        requireAdmin(actor);
+
+        int count = 0;
+
+        for (Job job : state.getJobs()) {
+            if (job.getStatus() == status) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    public int getBusyGpuCount(User actor) {
+
+        requireAdmin(actor);
+
+        int count = 0;
+
+        // A GPU is busy when it has a current job.
+        for (GPU gpu : state.getGpus()) {
+            if (!gpu.isFree()) {
+                count++;
+            }
+        }
+
+        return count;
+    }
 }
