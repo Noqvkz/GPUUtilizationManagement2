@@ -381,3 +381,34 @@ private void grantTime(){
     showError("Could not grant time", error);
   }
 }
+
+private void showSelectedStudentJobs(){
+  int row = studentTable.getSelectedRow();
+
+  if(row < 0 || row >= shownStudents.size()){
+    JOptionPane.showMessageDialog(this, "Select a student first.");
+    return;
+  }
+
+  String id = shownStudents.get(row).getUniversityId();
+  StringBuilder text = new StringBuilder();
+
+  text.append("Job ID | Title | Status | GPU | Start | Charged minutes\n");
+
+  for(Job job : allJobs){
+    if(job.getStudentId().equals(id)){
+      text.append(job.getJobId()).append.(" ").append(job.getTitle()).append("  ").append(job.getStatus()).append("  ").append(gpuText(job))
+        .append("  ").append(formatTime(job.getStartTime())).append("  ").append(chargedMinutes(job)).append("\n");
+            }
+        }
+
+  if(text.toString().equals("Job ID | Title | Status | GPU | Start | Charged minutes\n")){
+    text.append("This student has no jobs.");
+  }
+
+  JTextArea area = new JTextArea(text.toString(), 12, 45);
+  area.setEditable(false);
+
+  JOptionPane.showMessageDialog(this, new JScrollPane(area), "Jobs for " + id, JOptionPane.INFORMATION_MESSAGE);
+}
+  
