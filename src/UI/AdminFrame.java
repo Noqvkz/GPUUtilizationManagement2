@@ -411,4 +411,52 @@ private void showSelectedStudentJobs(){
 
   JOptionPane.showMessageDialog(this, new JScrollPane(area), "Jobs for " + id, JOptionPane.INFORMATION_MESSAGE);
 }
+
+private void cancelJob(){
+  int row = jobTable.getSelectedRow();
+
+  if(row < 0 || row >= shownJobs.size()){
+    JOptionPane.showMessageDialog(this, "Select a job first.");
+    return;
+  }
+
+  Job job = shownJobs.get(row);
+  String status = job.getStatus().toString();
+
+  if(!status.equals("QUEUED") && !status.equals("RUNNING")){
+    JOptionPane.showMessageDialog(this, "Only queued or running jobs can be cancelled.");
+    return;
+  }
+
+  int reserved = durationForSize(job.getTaskSize());
+  int charged = 0;
+
+  if(status.equals("RUNNING")){
+    charged = minutesBetween(job.getStartTime(), state.getCurrentTime());
+  }
+
+  int returned = Math.max(0, reserved - charged);
+
+  int answer = JOptionPane.showConfirmDialog(this, "Cancel " + job.getJobId() + "?\nMinutes charged: " + charged + "\nUnused minutes returned: " +
+                                             returned, "Confirm cancellation", JOptionPane.YES_NO_OPTION);
+
+  if(answer != JOptionPane.YES_OPTION){
+    return;
+  }
+
+  String reason = JOptionPane.showInputDialog(this, "Reason for Calcellation:");
+
+  if(reason == null){
+    return;
+  }
+
+  try{
+    scheduler.cancelJob(actor, job.getJobId(), reason);
+    saveData();
+    refreshAll();
+  }catch(RuntimeException error){
+    showError("Could not cancel job", error);
+  }
+}
+  
   
