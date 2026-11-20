@@ -458,5 +458,12 @@ private void cancelJob(){
     showError("Could not cancel job", error);
   }
 }
+
+  private void refreshAll(){
+    refreshRequests();
+    refreshStudents();
+    refreshJobs();
+    refreshDashboard();
+  }
   
   
