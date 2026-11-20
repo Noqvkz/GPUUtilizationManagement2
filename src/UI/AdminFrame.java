@@ -280,3 +280,10 @@ private void setClock(){
   }
 }
   
+private void showFirstClockSetup(){
+  int answer = JOptionPane.showConfirmDialog(this, clockSpinner, "Set the starting date and time for the simulation", JOptionPane.OK_CANCEL_OPTION);
+
+  if (answer == JOptionPane.OK_OPTION){
+    setClock();
+  }
+}
