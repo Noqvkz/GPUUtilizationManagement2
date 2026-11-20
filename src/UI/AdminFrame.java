@@ -151,3 +151,37 @@ public class AdminFrame extends JFrame {
 
     refreshAll();
   }
+
+  private JPanel makeDashboardPanel() {
+        JPanel panel = new JPanel(new BorderLayout(5, 5));
+        JPanel clock = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        clockSpinner.setEditor(new JSpinner.DateEditor(clockSpinner, "dd/MM/yyyy HH:mm"));
+
+        clock.add(new JLabel("Starting time:"));
+        clock.add(clockSpinner);
+
+        setClockButton.addActionListener(e -> setClock());
+        advanceButton.addActionListener(e -> advanceMinute());
+
+        clock.add(setClockButton);
+        clock.add(advanceButton);
+        clock.add(new JLabel("Current time:"));
+        clock.add(clockLabel);
+
+        JPanel overview = new JPanel(new BorderLayout(5, 5));
+        overview.add(countsLabel, BorderLayout.NORTH);
+
+        gpuDetials.setEditable(false);
+        overview.add(new JScrollPane(gpuDetails), BorderLayout.CENTER);
+
+        JTabbedPane detailTabs = new JTabbedPane();
+        detailTabs.addTab("GPU overview", overoview);
+        detailTabs.addTab("Waiting jobs", new JScrollPane(waitingTable));
+        detailTabs.addTab("Completed jobs", new JScrollPane(completedTable));
+
+        panel.add(clock, BorderLayout.NORTH);
+        panel.add(detailTabs, BorderLayout.CENTER);
+
+        return panel;
+  }
