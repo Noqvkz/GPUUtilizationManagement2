@@ -136,3 +136,18 @@ public class AdminFrame extends JFrame {
     header.add(saveButton);
     header.add(logoutbutton);
     add(header, BorderLayout.NORTH);
+
+    JTabbedPane tabs = new JTabbedPane();
+    tabs.addTab("Dashboard", makeDashboardPanel());
+    tabs.addTab("Requests", makeRequstPanel()):
+    tabs.addTab("Students", makeStudentsPanel());
+    tabs.addTab("All jobs", makeJobsPanel());
+    add(tabs, BorderLayout.CENTER);
+
+    requestFilter.addActionListener(e -> showRequests());
+    jobStatusFilter.addActionListener(e -> showJobs());
+
+    requestTable.getSelectionModel().addListSelectionListener(e -> updateRequestButtons());
+
+    refreshAll();
+  }
