@@ -178,4 +178,121 @@ public class Scheduler {
             freeGpu.assign(next);
         }
     }
+        public void initializeClock(User actor, LocalDateTime startingTime) {
+
+        // Only the administrator can set the starting date and time.
+        requireAdmin(actor);
+
+        // AppState handles storing and validating the initial clock value.
+        state.initializeClock(startingTime);
+
+        // Start any waiting work if a GPU is available.
+        startWaitingJobs();
+    }
+
+    public Job submitJob(User actor, String title, String applicationName,
+            String description, TaskSize size) {
+
+        // Check that the caller is an approved student.
+        Student student = requireStudent(actor);
+        requireClock();
+
+        // Check all required job details before changing the balance.
+        title = requiredText(title, "Title");
+        applicationName = requiredText(applicationName, "Application name");
+        description = requiredText(description, "Description");
+
+        if (size == null) {
+            throw new IllegalArgumentException("Select a task size.");
+        }
+
+        int duration = size.getDuration();
+
+        // Reject only when the job needs more than the available allowance.
+        // A job using exactly the available minutes is accepted.
+        if (duration > student.getAllowance().getAvailable()) {
+            throw new IllegalArgumentException(
+                    "This job needs " + duration
+                    + " minutes; available: "
+                    + student.getAllowance().getAvailable() + ".");
+        }
+
+        // The system provides the ID, owner and simulated submission time.
+        Job job = new Job(
+                state.createJobId(),
+                student.getUniversityId(),
+                title,
+                applicationName,
+                description,
+                size,
+                state.getCurrentTime());
+
+        // Reserve the full duration while the job is queued or running.
+        student.getAllowance().reserve(duration);
+        state.getJobs().add(job);
+
+        // A newly accepted job can start immediately if a GPU is free.
+        startWaitingJobs();
+
+        return job;
+    }
+
+    public void advanceMinute(User actor) {
+
+        requireAdmin(actor);
+        requireClock();
+
+        // Move the shared simulation clock forward by one minute.
+        state.advanceClockOneMinute();
+
+        // Finish existing jobs before starting waiting jobs at the new time.
+        for (GPU gpu : state.getGpus()) {
+
+            Job job = gpu.getCurrentJob();
+
+            if (job != null && job.getStatus() == JobStatus.RUNNING) {
+
+                LocalDateTime end = job.getStartTime().plusMinutes(
+                        job.getEstimatedDuration());
+
+                // Complete the job once the clock reaches its finish time.
+                if (!state.getCurrentTime().isBefore(end)) {
+
+                    Student owner = findStudent(job.getStudentId());
+
+                    job.complete(end);
+
+                    // Release the reservation and charge the full duration.
+                    owner.getAllowance().settle(
+                            job.getEstimatedDuration(),
+                            job.getEstimatedDuration());
+
+                    gpu.release();
+                }
+            }
+        }
+
+        // Use any GPUs that became free after the completions.
+        startWaitingJobs();
+    }
+
+    public long getRuntimeMinutes(String jobId) {
+
+        Job job = findJob(jobId);
+
+        // Jobs that never started have no execution time.
+        if (job.getStartTime() == null) {
+            return 0;
+        }
+
+        LocalDateTime end = job.getFinishTime();
+
+        // A running job has executed from its start until the current clock.
+        if (job.getStatus() == JobStatus.RUNNING) {
+            end = state.getCurrentTime();
+        }
+
+        // Waiting time is excluded because counting starts at startTime.
+        return Duration.between(job.getStartTime(), end).toMinutes();
+    }
 }
