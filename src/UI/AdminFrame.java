@@ -265,3 +265,18 @@ public class AdminFrame extends JFrame {
 
     return panel;
   }
+
+private void setClock(){
+  Date date = (Date) clockSpinner.getValue();
+
+  LocalDateTime time = LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+
+  try {
+    scheduler.initializerClock(actor, time.withSecond(0).withNano(0));
+    saveData();
+    refreshAll();
+  } catch(RuntimeException error){
+    showError("could not set clock"), error);
+  }
+}
+  
