@@ -109,4 +109,30 @@ public class AdminFrame extends JFrame {
         setSize(1150, 700);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+
+    addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowOpened(java.awt.event.WindowEvent e) {
+                if (!state.isClockSet()) {
+                    showFirstClockSetup();
+                }
+            }
+
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                if (saveData()) {
+                    dispose();
+                    System.exit(0);
+                }
+            }
+        });
+
+    JPanel header = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
+    JButton saveButton = new JButton("Save now");
+    saveButton.addActionListener(e -> saveData());
     
+    JButton logoutButton = new JButton("Log out");
+    logoutButton.addActionListener(e -> logout());
+
+    header.add(saveButton);
+    header.add(logoutbutton);
+    add(header, BorderLayout.NORTH);
