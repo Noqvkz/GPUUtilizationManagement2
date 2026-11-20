@@ -608,4 +608,255 @@ public class Scheduler {
                 job.getSubmissionTime(),
                 job.getCancellationTime()).toMinutes();
     }
+
+    // Run Scheduler.java as a Java Application to test the simulation.
+    // This uses separate demo files rather than the final application data.
+    public static void main(String[] args) {
+
+        try {
+
+            // Create shared demo data and use the account service to log in.
+            AppState demo = new AppState();
+            AccountService accounts = new AccountService(demo);
+
+            User admin = accounts.login("admin", "gpu2026");
+
+            Student[] students = new Student[5];
+            String[] names = {
+                "Ali", "Sara", "Hamad", "Mariam", "Noura"
+            };
+
+            // Register and approve five students for the example.
+            for (int i = 0; i < 5; i++) {
+
+                AccessRequest request = accounts.register(
+                        "10000000" + (i + 1),
+                        names[i],
+                        names[i].toLowerCase() + "@ku.ac.ae",
+                        "0501234567",
+                        "student123");
+
+                students[i] = accounts.approveRequest(admin, request);
+            }
+
+            // Keep a pending request and a rejected request for demo data.
+            accounts.register(
+                    "100000006",
+                    "Pending Student",
+                    "pending@ku.ac.ae",
+                    "0501234567",
+                    "student123");
+
+            AccessRequest rejected = accounts.register(
+                    "100000007",
+                    "Rejected Student",
+                    "rejected@ku.ac.ae",
+                    "0501234567",
+                    "student123");
+
+            accounts.rejectRequest(admin, rejected);
+
+            Scheduler scheduler = new Scheduler(demo);
+
+            scheduler.initializeClock(
+                    admin,
+                    LocalDateTime.of(2026, 11, 16, 10, 0));
+
+            // 10:00: submit the first four jobs.
+            scheduler.submitJob(
+                    students[0], "J101 example",
+                    "Jupyter", "Test", TaskSize.SMALL);
+
+            scheduler.submitJob(
+                    students[1], "J102 example",
+                    "Pandas", "Test", TaskSize.MEDIUM);
+
+            scheduler.submitJob(
+                    students[2], "J103 example",
+                    "BLAST", "Test", TaskSize.MEDIUM);
+
+            scheduler.submitJob(
+                    students[3], "J104 example",
+                    "MATLAB", "Test", TaskSize.LARGE);
+
+            // Advance to 10:08.
+            for (int i = 0; i < 8; i++) {
+                scheduler.advanceMinute(admin);
+            }
+
+            Job runningExample = scheduler.submitJob(
+                    students[0], "J105 example",
+                    "PyTorch", "Test", TaskSize.LARGE);
+
+            // Advance to 10:10.
+            for (int i = 0; i < 2; i++) {
+                scheduler.advanceMinute(admin);
+            }
+
+            scheduler.submitJob(
+                    students[1], "J106 example",
+                    "PyTorch", "Test", TaskSize.MEDIUM);
+
+            // Advance to 10:12.
+            for (int i = 0; i < 2; i++) {
+                scheduler.advanceMinute(admin);
+            }
+
+            scheduler.submitJob(
+                    students[2], "J107 example",
+                    "BLAST", "Test", TaskSize.LARGE);
+
+            // Advance to 10:16.
+            for (int i = 0; i < 4; i++) {
+                scheduler.advanceMinute(admin);
+            }
+
+            Job waiting1 = scheduler.submitJob(
+                    students[4], "J108 example",
+                    "TensorFlow", "Test", TaskSize.MEDIUM);
+
+            // Advance to 10:18.
+            for (int i = 0; i < 2; i++) {
+                scheduler.advanceMinute(admin);
+            }
+
+            Job waiting2 = scheduler.submitJob(
+                    students[1], "J109 example",
+                    "OpenCV", "Test", TaskSize.SMALL);
+
+            // Advance to 10:19, then cancel a newly queued job.
+            scheduler.advanceMinute(admin);
+
+            Job cancelled = scheduler.submitJob(
+                    students[2], "J110 example",
+                    "Jupyter", "Test", TaskSize.SMALL);
+
+            scheduler.cancelJob(
+                    students[2],
+                    cancelled.getJobId(),
+                    "No longer needed");
+
+            // Advance to 10:20 and display the example results.
+            scheduler.advanceMinute(admin);
+
+            System.out.println(
+                    "Time: " + demo.getCurrentTime().format(
+                            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+
+            System.out.println(
+                    "Running: "
+                    + scheduler.getJobCount(admin, JobStatus.RUNNING));
+
+            System.out.println(
+                    "Queued: "
+                    + scheduler.getJobCount(admin, JobStatus.QUEUED));
+
+            System.out.println(
+                    "Completed: "
+                    + scheduler.getJobCount(admin, JobStatus.COMPLETED));
+
+            System.out.println(
+                    "Cancelled: "
+                    + scheduler.getJobCount(admin, JobStatus.CANCELLED));
+
+            System.out.println(
+                    "Busy GPUs: "
+                    + scheduler.getBusyGpuCount(admin) + "/4");
+
+            System.out.println(
+                    "Waits: "
+                    + scheduler.getRemainingWait(waiting1.getJobId())
+                    + ", "
+                    + scheduler.getRemainingWait(waiting2.getJobId()));
+
+            System.out.println(
+                    "Utilization: "
+                    + Math.round(
+                            scheduler.getUtilizationPercent() * 10.0)
+                            / 10.0
+                    + "%");
+
+            // Stop the demo if the results do not match the guide.
+            if (scheduler.getJobCount(admin, JobStatus.RUNNING) != 4
+                    || scheduler.getJobCount(admin, JobStatus.QUEUED) != 2
+                    || scheduler.getJobCount(admin, JobStatus.COMPLETED) != 3
+                    || scheduler.getJobCount(admin, JobStatus.CANCELLED) != 1
+                    || scheduler.getRemainingWait(waiting1.getJobId()) != 10
+                    || scheduler.getRemainingWait(waiting2.getJobId()) != 10
+                    || Math.abs(
+                            scheduler.getUtilizationPercent() - 96.25)
+                            > 0.001) {
+
+                throw new IllegalStateException(
+                        "The example results did not match.");
+            }
+
+            // Save and reload the example using a separate demo file.
+            DataStore store =
+                    new DataStore("demo-data/scheduler-demo.ser");
+
+            store.save(demo);
+
+            AppState restored = store.load();
+            Scheduler restoredScheduler = new Scheduler(restored);
+
+            // Check that the saved clock and waiting prediction return.
+            if (!restored.getCurrentTime().equals(demo.getCurrentTime())
+                    || restoredScheduler.getRemainingWait(
+                            waiting1.getJobId()) != 10) {
+
+                throw new IllegalStateException(
+                        "The saved example was not restored correctly.");
+            }
+
+            System.out.println("Save/reload: passed");
+
+            // Add ten more jobs to prepare a twenty-job sample.
+            // This sample keeps jobs across the different statuses.
+            Job extraToCancel = null;
+
+            for (int i = 0; i < 10; i++) {
+
+                // i % 5 shares the jobs between the five students.
+                Job extra = scheduler.submitJob(
+                        students[i % 5],
+                        "Extra sample " + (i + 1),
+                        "Test application",
+                        "Sample data",
+                        TaskSize.SMALL);
+
+                if (i == 0) {
+                    extraToCancel = extra;
+                }
+            }
+
+            // Demonstrate a student cancelling their running job.
+            scheduler.cancelJob(
+                    students[0],
+                    runningExample.getJobId(),
+                    "Sample running cancellation");
+
+            // Demonstrate the administrator cancelling a queued job.
+            scheduler.cancelJob(
+                    admin,
+                    extraToCancel.getJobId(),
+                    "Sample queued cancellation");
+
+            DataStore sampleStore =
+                    new DataStore("sample-data/scheduler-sample.ser");
+
+            sampleStore.save(demo);
+
+            System.out.println(
+                    "20-job sample saved: sample-data/scheduler-sample.ser");
+
+            System.out.println("SCHEDULER DEMO PASSED");
+
+        } catch (Exception e) {
+
+            // Print a clear failure message if any demo step fails.
+            System.out.println("DEMO FAILED: " + e.getMessage());
+            System.exit(1);
+        }
+    }
 }
