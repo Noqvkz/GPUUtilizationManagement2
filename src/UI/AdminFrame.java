@@ -208,3 +208,33 @@ public class AdminFrame extends JFrame {
 
         return panel;
   }
+
+  private JPanel makeStudentPanel() {
+    JPanel panel = new JPanel(new BorderLayout());
+    JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+    controls.add(new JLabel("Search student ID:"));
+    controls.add(studentSearch);
+
+    JButton searchButton = new JButton("Search");
+    searchButton.addActionListener(e -> showStudents());
+
+    JButton grantButton = new JButton("Grant extra time");
+    grantButton.addActionListener(e -> grantTime());
+
+    JButton jobsButton = new JButton("View selected student's jobs");
+    jobsButton.addActionListener(e -> showSelectedStudentJobs());
+
+    JButton refreshButton = new JButton("Refresh");
+    refreshButton.addActionListener(e -> refreshStudents());
+
+    controls.add(searchButton);
+    controls.add(grantButton);
+    controls.add(jobsButton);
+    controls.add(refreshButton);
+
+    panel.add(controls, BorderLayout.NORTH);
+    panel.add(new JScrollPane(studentTable), BorderLayout.CENTER);
+
+    return panel;
+ }
