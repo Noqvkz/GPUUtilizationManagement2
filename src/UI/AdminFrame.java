@@ -185,3 +185,26 @@ public class AdminFrame extends JFrame {
 
         return panel;
   }
+
+  private JPanel makeRequestPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        controls.add(new JLabel("Show:"));
+        controls.add(requestFilter);
+
+        approveButton.addActionListener(e -> approveRequest());
+        rejectButton.addActionListener(e -> rejectRequest());
+
+        JButton refreshButton = new JButton("Refresh");
+        refreshButton.addActionListener(e -> refreshRequests());
+
+        controls.add(approveButton);
+        controls.add(rejectButton);
+        controls.add(refreshButton);
+
+        panel.add(controls, BorderLayout.NORTH);
+        panel.add(new JScrollPane(requestTable), BorderLayout.CENTER);
+
+        return panel;
+  }
