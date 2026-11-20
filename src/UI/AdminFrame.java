@@ -339,3 +339,12 @@ private void rejectRequest(){
     showError("Could not reject request", error);
   }
 }
+
+private void updateRequestButtons(){
+  int row = requestTable.getSelectedRow():
+
+  boolean pending = row >= 0 && row < shownRequests.size() && shownRequests.get(row).getStatus().toString().equal("PENDING");
+
+  approveButton.setEnabled(pendiing);
+  rejectButton.setEnabled(pending);
+}
