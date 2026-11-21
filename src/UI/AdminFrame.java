@@ -537,3 +537,10 @@ private void cancelJob(){
     return null;
   }
 
+  private boolean gpuIdMatches(Job job, int gpuId){
+    String assigned = String.valueOf(job.getAssignedGpuId());
+
+    return assigned.equals(String.valueOf(gpuId)) || assigned.equalsIgnoreCase("GPU" + gpuId);
+  }
+  
+
