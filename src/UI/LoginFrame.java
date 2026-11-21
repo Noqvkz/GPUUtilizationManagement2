@@ -151,7 +151,9 @@ public class LoginFrame extends JFrame {
                     phoneField.getText(),
                     new String(newPasswordField.getPassword()));
 
-            saveData();
+            if(!saveData()){
+                return;
+            }
 
             JOptionPane.showMessageDialog(this,
                     "Request sent. An administrator must approve it before you can log in.");
