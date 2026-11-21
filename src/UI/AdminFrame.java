@@ -528,5 +528,12 @@ private void cancelJob(){
         showCompletedJobs();
   }
 
-    
+  private Job findRunningJobOnGpu(int gpuId){
+    for(Job job : allJobs){
+      if(job.getStatus().toString().equals("RUNNING") && gpuIdMatches(job, gpuId)){
+        return job;
+      }
+    }
+    return null;
+  }
 
