@@ -542,5 +542,29 @@ private void cancelJob(){
 
     return assigned.equals(String.valueOf(gpuId)) || assigned.equalsIgnoreCase("GPU" + gpuId);
   }
-  
 
+  private void showWaitingJobs(){
+    waitingModel.setRowCount(0);
+
+    if(!state.isClockSet()){
+      return;
+    }
+
+    for(Job job : allJobs){
+      if(!job.getStatus().toString().equals("QUEUED")){
+        continue;
+      }
+
+      try{
+        LocalDateTime start =  scheduler.getPredictedStart(job.getJobId());
+        LocalDateTime finish = scheduler.getPredictedFinish(job.getJobId());
+
+        waitingModel.addRow(new Object[] { job.getJobId(),job.getStudentId(), job.getApplicationName(), durationForSize(job.getTaskSize()),
+                                          scheduler.getQueuePosition(job.getJobId()), formatTime(start),formatTime(finish),
+                                          scheduler.getRemainingWait(job.getJobId()) + " min"});
+      }catch (RuntimeException error){
+        waitingModel.addRow(new Object[] { job.getJobId(), job.getStudentId(), job.getApplicationName(), durationForSize(job.getTaskSize()), "—",
+                                          "Unavailable", "Unavailable", "Unavailable" });
+            }
+        }
+    }
