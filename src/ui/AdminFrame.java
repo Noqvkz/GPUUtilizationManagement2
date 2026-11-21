@@ -2,6 +2,9 @@ package ui;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -10,7 +13,21 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 
-import javax.swing.*;
+import javax.swing.JButton;
+import javax.swing.BorderFactory;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SpinnerDateModel;
+import javax.swing.WindowConstants;
 import javax.swing.table.DefaultTableModel;
 
 import logic.AccountService;
@@ -22,86 +39,123 @@ import model.Student;
 import model.User;
 import storage.DataStore;
 
-public class AdminFrame extends JFrame {
-  private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+public class AdminFrame extends JFrame implements ActionListener {
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-  private User actor;
-  private AccountService accounts;
-  private Scheduler scheduler;
-  private DataStore store;
-  private AppState state;
-  private LoginFrame loginFrame;
+    private User actor;
+    private AccountService accounts;
+    private Scheduler scheduler;
+    private DataStore store;
+    private AppState state;
+    private LoginFrame loginFrame;
 
-  private JSpinner clockSpinner = new JSpinner(new SpinnerDateModel());
-  private JButton setClockButton = new JButton("Set starting time");
-  private JButton advanceButton = new JButton("+1 minute");
-  private JLabel clockLabel = new JLabel();
-  private JLabel countsLabel = new JLabel();
-  private JTextArea gpuDetails = new JTextArea(6, 50);
+    private JSpinner clockSpinner = new JSpinner(new SpinnerDateModel());
+    private JButton setClockButton = new JButton("Set starting time");
+    private JButton advanceButton = new JButton("+1 minute");
+    private JLabel clockLabel = new JLabel();
+    private JPanel gpuCards = new JPanel(new GridLayout(1, 4, 8, 0));
+    private JLabel runningValue = new JLabel("0");
+    private JLabel queuedValue = new JLabel("0");
+    private JLabel completedValue = new JLabel("0");
+    private JLabel cancelledValue = new JLabel("0");
+    private JLabel busyGpuValue = new JLabel("0 / 0");
+    private JLabel utilizationValue = new JLabel("N/A");
+    private JTextField initialMinutesField = new JTextField("100", 5);
+    private JLabel selectedRequestLabel = new JLabel("Select a row, enter the starting minutes, then approve or reject.");
 
-  private ArrayList<AccessRequest> allRequests = new ArrayList<AccessRequest>();
-  private ArrayList<AccessRequest> shownRequests = new ArrayList<AccessRequest>();
-  private ArrayList<Student> allStudents = new ArrayList<Student>();
-  private ArrayList<Student> shownStudents = new ArrayList<Student>();
-  private ArrayList<Job> allJobs = new ArrayList<Job>();
-  private ArrayList<Job> shownJobs = new ArrayList<Job>();
+    private ArrayList<AccessRequest> allRequests = new ArrayList<AccessRequest>();
+    private ArrayList<AccessRequest> shownRequests =  new ArrayList<AccessRequest>();
+    private ArrayList<Student> allStudents = new ArrayList<Student>();
+    private ArrayList<Student> shownStudents = new ArrayList<Student>();
+    private ArrayList<Job> allJobs = new ArrayList<Job>();
+    private ArrayList<Job> shownJobs = new ArrayList<Job>();
 
-  private JComboBox<String> requestFilter = new JComboBox<String>(new String[] {"PENDING", "ALL", "APPROVED", "REJECTED"});
-  private JComboBox<String> jobStatusFilter = new JComboBox<String>(new String[] {"ALL", "QUEUED", "RUNNING", "COMPLETED", "CANCELLED"});
-  
-  private JTextField studentSearch = new JTextField(15);
-  private JTextField jobSearch = new JTextField(15);
+    private JComboBox<String> requestFilter = new JComboBox<String>(
+            new String[] {"PENDING", "ALL", "APPROVED", "REJECTED"});
+    private JComboBox<String> jobStatusFilter = new JComboBox<String>(
+            new String[] {"ALL", "QUEUED", "RUNNING", "COMPLETED", "CANCELLED"});
+    private JTextField studentSearch = new JTextField(15);
+    private JTextField jobSearch = new JTextField(15);
 
-  private JButton approveButton = new JButton("Approve");
-  private JButton rejectButton = new JButton("Reject");
+    private JButton approveButton = new JButton("Approve");
+    private JButton rejectButton = new JButton("Reject");
+    private JButton requestRefreshButton = new JButton("Refresh");
+    private JButton studentSearchButton = new JButton("Search");
+    private JButton grantButton = new JButton("Grant extra time");
+    private JButton studentJobsButton =
+            new JButton("View selected student's jobs");
+    private JButton studentRefreshButton = new JButton("Refresh");
+    private JButton jobSearchButton = new JButton("Search");
+    private JButton cancelJobButton =
+            new JButton("Cancel selected job");
+    private JButton jobRefreshButton = new JButton("Refresh");
+    private JButton logoutButton = new JButton("Log out");
 
-  private DefaultTableModel requestModel = new DefaultTableModel(new String[] {
-            "University ID", "Name", "Email", "Phone", "Status", "Password"
-        }, 0) {
+    private DefaultTableModel requestModel = new DefaultTableModel(
+            new String[] {"University ID", "Name", "Email", "Phone", "Status"},
+            0) {
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
+    private JTable requestTable = new JTable(requestModel);
 
-    public boolean isCellEditable(int row, int column) {
-        return false;
-    }
-  };
+    private DefaultTableModel studentModel = new DefaultTableModel(
+            new String[] {
+                    "University ID", "Name", "Allocated", "Used", "Reserved",
+                    "Available"
+            }, 0) {
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
+    private JTable studentTable = new JTable(studentModel);
 
-  private JTable requestTable = new JTable(requestModel);
+    private DefaultTableModel allowanceModel = new DefaultTableModel(
+            new String[] {
+                    "Student", "Allocated", "Used", "Reserved", "Available"
+            }, 0) {
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
+    private JTable allowanceTable = new JTable(allowanceModel);
 
-  private DefaultTableModel studentModel = new DefaultTableModel(new String[]  {"University ID", "Name", "Allocated", "Used","Reserved", "Available"} , 0){
-    public boolean isCellEditable(int row, int column){
-      return false;
-    }
-  };
+    private DefaultTableModel jobModel = new DefaultTableModel(
+            new String[] {
+                    "Job ID", "Student", "Application", "Title", "Size",
+                    "Status", "GPU", "Submitted", "Start", "Finish"
+            }, 0) {
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
+    private JTable jobTable = new JTable(jobModel);
 
-  private JTable studentTable = new JTable(studentModel);
+    private DefaultTableModel waitingModel = new DefaultTableModel(
+            new String[] {
+                    "Job", "Student", "Application", "Minutes", "Position",
+                    "Predicted start", "Predicted finish", "Wait"
+            }, 0) {
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
+    private JTable waitingTable = new JTable(waitingModel);
 
-  private DefaultTableModel jobModel = new DefaultTableModel(new String[] {"Job ID", "Student", "Application", "Title", "Size", "Status", "GPU", "Submitted",
-                                                                           "Start", "Finish"}, 0){
-    public boolean isCellEditable(int row, int column){
-      return false;
-    }
-  };
+    private DefaultTableModel completedModel = new DefaultTableModel(
+            new String[] {
+                    "Job", "Student", "Application", "GPU", "Submitted",
+                    "Start", "Finish", "Runtime", "Queue wait", "Charged"
+            }, 0) {
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
+    private JTable completedTable = new JTable(completedModel);
 
-  private JTable jobTable = new JTable(jobModel);
-
-  private DefaultTableModel waitingModel = new DefaultTableModel(new String[] {"Job", "Student", "Application", "Minutes", "Position","Predicted start",
-                                                                               "Predicted finish", "Wait"}, 0){
-    public boolean isCellEditable(int row, int column){
-      return false;
-    }
-  };
-
-  private JTable waitingTable = new JTable(waitingModel);
-
-  private DefaultTableModel completedModel = new DefaultTableModel(new String[] {"Job", "Student", "Application", "GPU", "Submitted", "Start", "Finish",
-                                                                                 "Runtime", "Queue wait", "Charged"}, 0) {
-    public boolean isCellEditable(int row, int column) {
-      return false;
-    }
-  };
-
-  private JTable completedTable = new JTable(completedModel);
-
-  public AdminFrame(User actor, AccountService accounts, Scheduler scheduler,DataStore store, AppState state, LoginFrame loginFrame) {
+    public AdminFrame(User actor, AccountService accounts, Scheduler scheduler,
+                      DataStore store, AppState state, LoginFrame loginFrame) {
         this.actor = actor;
         this.accounts = accounts;
         this.scheduler = scheduler;
@@ -111,17 +165,18 @@ public class AdminFrame extends JFrame {
 
         setTitle("Administrator - GPU Utilization Management");
         setSize(1150, 700);
+        setResizable(false);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 
-    addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowOpened(java.awt.event.WindowEvent e) {
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowOpened(java.awt.event.WindowEvent event) {
                 if (!state.isClockSet()) {
                     showFirstClockSetup();
                 }
             }
 
-            public void windowClosing(java.awt.event.WindowEvent e) {
+            public void windowClosing(java.awt.event.WindowEvent event) {
                 if (saveData()) {
                     dispose();
                     System.exit(0);
@@ -129,543 +184,665 @@ public class AdminFrame extends JFrame {
             }
         });
 
-    JPanel header = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel header = new JPanel(new BorderLayout());
+        JLabel adminTitle = new JLabel("Administrator");
+        JPanel headerActions = new JPanel(
+                new FlowLayout(FlowLayout.RIGHT, 10, 8));
 
-    JButton saveButton = new JButton("Save now");
-    saveButton.addActionListener(e -> saveData());
-    
-    JButton logoutButton = new JButton("Log out");
-    logoutButton.addActionListener(e -> logout());
+        advanceButton.addActionListener(this);
+        logoutButton.addActionListener(this);
+        headerActions.add(new JLabel("Simulated time"));
+        headerActions.add(clockLabel);
+        headerActions.add(advanceButton);
+        headerActions.add(logoutButton);
 
-    header.add(saveButton);
-    header.add(logoutButton);
-    add(header, BorderLayout.NORTH);
+        header.add(adminTitle, BorderLayout.WEST);
+        header.add(headerActions, BorderLayout.EAST);
+        header.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        add(header, BorderLayout.NORTH);
 
-    JTabbedPane tabs = new JTabbedPane();
-    tabs.addTab("Dashboard", makeDashboardPanel());
-    tabs.addTab("Requests", makeRequestPanel());
-    tabs.addTab("Students", makeStudentsPanel());
-    tabs.addTab("All jobs", makeJobsPanel());
-    add(tabs, BorderLayout.CENTER);
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.addTab("Dashboard", makeDashboardPanel());
+        tabs.addTab("Requests", makeRequestPanel());
+        tabs.addTab("Students", makeStudentsPanel());
+        tabs.addTab("All jobs", makeJobsPanel());
+        add(tabs, BorderLayout.CENTER);
 
-    requestFilter.addActionListener(e -> showRequests());
-    jobStatusFilter.addActionListener(e -> showJobs());
+        requestFilter.addActionListener(this);
+        jobStatusFilter.addActionListener(this);
+        setClockButton.addActionListener(this);
+        approveButton.addActionListener(this);
+        rejectButton.addActionListener(this);
+        requestRefreshButton.addActionListener(this);
+        studentSearchButton.addActionListener(this);
+        grantButton.addActionListener(this);
+        studentJobsButton.addActionListener(this);
+        studentRefreshButton.addActionListener(this);
+        jobSearchButton.addActionListener(this);
+        cancelJobButton.addActionListener(this);
+        jobRefreshButton.addActionListener(this);
 
-    requestTable.getSelectionModel().addListSelectionListener(e -> updateRequestButtons());
+        refreshAll();
+    }
 
-    refreshAll();
-  }
+    public void actionPerformed(ActionEvent event) {
+        if (event.getSource() == advanceButton) {
+            advanceMinute();
+        } else if (event.getSource() == logoutButton) {
+            logout();
+        } else if (event.getSource() == setClockButton) {
+            setClock();
+        } else if (event.getSource() == approveButton) {
+            approveRequest();
+        } else if (event.getSource() == rejectButton) {
+            rejectRequest();
+        } else if (event.getSource() == requestRefreshButton) {
+            refreshRequests();
+        } else if (event.getSource() == requestFilter) {
+            showRequests();
+        } else if (event.getSource() == studentSearchButton) {
+            showStudents();
+        } else if (event.getSource() == grantButton) {
+            grantTime();
+        } else if (event.getSource() == studentJobsButton) {
+            showSelectedStudentJobs();
+        } else if (event.getSource() == studentRefreshButton) {
+            refreshStudents();
+        } else if (event.getSource() == jobSearchButton) {
+            showJobs();
+        } else if (event.getSource() == cancelJobButton) {
+            cancelJob();
+        } else if (event.getSource() == jobRefreshButton) {
+            refreshJobs();
+        } else if (event.getSource() == jobStatusFilter) {
+            showJobs();
+        }
+    }
 
-  private JPanel makeDashboardPanel() {
+    private JPanel makeDashboardPanel() {
         JPanel panel = new JPanel(new BorderLayout(5, 5));
-        JPanel clock = new JPanel(new FlowLayout(FlowLayout.LEFT));
-
+        JPanel clock = new JPanel(new GridLayout(1, 3, 5, 5));
         clockSpinner.setEditor(
-        new JSpinner.DateEditor(clockSpinner, "dd/MM/yyyy HH:mm"));
-
-JSpinner.DateEditor editor =
-        (JSpinner.DateEditor) clockSpinner.getEditor();
-
-editor.getFormat().setLenient(false);
-editor.getTextField().setFocusLostBehavior(JFormattedTextField.PERSIST);
-
-        clock.add(new JLabel("Starting time:"));
+                new JSpinner.DateEditor(clockSpinner, "dd/MM/yyyy HH:mm"));
+        clock.add(new JLabel("Starting simulation time"));
         clock.add(clockSpinner);
-
-        setClockButton.addActionListener(e -> setClock());
-        advanceButton.addActionListener(e -> advanceMinute());
-
         clock.add(setClockButton);
-        clock.add(advanceButton);
-        clock.add(new JLabel("Current time:"));
-        clock.add(clockLabel);
 
-        JPanel overview = new JPanel(new BorderLayout(5, 5));
-        overview.add(countsLabel, BorderLayout.NORTH);
+        JPanel middle = new JPanel(new GridLayout(1, 2, 5, 5));
+        middle.add(makeTableCard("Waiting jobs", waitingTable));
+        middle.add(makeTableCard("Student allowances", allowanceTable));
 
-        gpuDetails.setEditable(false);
-        overview.add(new JScrollPane(gpuDetails), BorderLayout.CENTER);
-
-        JTabbedPane detailTabs = new JTabbedPane();
-        detailTabs.addTab("GPU overview", overview);
-        detailTabs.addTab("Waiting jobs", new JScrollPane(waitingTable));
-        detailTabs.addTab("Completed jobs", new JScrollPane(completedTable));
+        JPanel content = new JPanel(new GridLayout(4, 1, 5, 5));
+        content.add(makeMetricsPanel());
+        content.add(makeGpuPanel());
+        content.add(middle);
+        content.add(makeTableCard("Completed jobs", completedTable));
 
         panel.add(clock, BorderLayout.NORTH);
-        panel.add(detailTabs, BorderLayout.CENTER);
-
+        panel.add(content, BorderLayout.CENTER);
         return panel;
-  }
+    }
 
-  private JPanel makeRequestPanel() {
+    private JPanel makeMetricsPanel() {
+        JPanel metrics = new JPanel(new GridLayout(1, 6, 8, 0));
+        metrics.add(makeMetricCard("Running", runningValue));
+        metrics.add(makeMetricCard("Queued", queuedValue));
+        metrics.add(makeMetricCard("Completed", completedValue));
+        metrics.add(makeMetricCard("Cancelled", cancelledValue));
+        metrics.add(makeMetricCard("Busy GPUs", busyGpuValue));
+        metrics.add(makeMetricCard("Utilization", utilizationValue));
+        return metrics;
+    }
+
+    private JPanel makeMetricCard(String heading, JLabel value) {
+        JPanel card = new JPanel(new GridLayout(2, 1, 2, 2));
+        card.setBorder(BorderFactory.createLineBorder(java.awt.Color.GRAY));
+        card.add(new JLabel(heading));
+        card.add(value);
+        return card;
+    }
+
+    private JPanel makeGpuPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panel.add(new JLabel("GPU status"), BorderLayout.NORTH);
+        panel.add(gpuCards, BorderLayout.CENTER);
+        return panel;
+    }
 
+    private JPanel makeTableCard(String title, JTable table) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(title));
+        panel.add(new JScrollPane(table), BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel makeRequestPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+        JPanel controls = new JPanel(
+                new FlowLayout(FlowLayout.RIGHT));
         controls.add(new JLabel("Show:"));
         controls.add(requestFilter);
+        controls.add(requestRefreshButton);
 
-        approveButton.addActionListener(e -> approveRequest());
-        rejectButton.addActionListener(e -> rejectRequest());
-
-        JButton refreshButton = new JButton("Refresh");
-        refreshButton.addActionListener(e -> refreshRequests());
-
-        controls.add(approveButton);
-        controls.add(rejectButton);
-        controls.add(refreshButton);
+        JPanel selected = new JPanel(
+                new FlowLayout(FlowLayout.LEFT, 10, 6));
+        selected.add(selectedRequestLabel);
+        selected.add(new JLabel("Initial GPU minutes:"));
+        selected.add(initialMinutesField);
+        selected.add(approveButton);
+        selected.add(rejectButton);
 
         panel.add(controls, BorderLayout.NORTH);
         panel.add(new JScrollPane(requestTable), BorderLayout.CENTER);
-
+        panel.add(selected, BorderLayout.SOUTH);
         return panel;
-  }
+    }
 
-  private JPanel makeStudentsPanel() {
-    JPanel panel = new JPanel(new BorderLayout());
-    JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    private JPanel makeStudentsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-    controls.add(new JLabel("Search student ID:"));
-    controls.add(studentSearch);
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        controls.add(new JLabel("Search student ID:"));
+        controls.add(studentSearch);
+        controls.add(studentSearchButton);
+        controls.add(grantButton);
+        controls.add(studentJobsButton);
+        controls.add(studentRefreshButton);
 
-    JButton searchButton = new JButton("Search");
-    searchButton.addActionListener(e -> showStudents());
+        panel.add(controls, BorderLayout.NORTH);
+        panel.add(new JScrollPane(studentTable), BorderLayout.CENTER);
+        return panel;
+    }
 
-    JButton grantButton = new JButton("Grant extra time");
-    grantButton.addActionListener(e -> grantTime());
+    private JPanel makeJobsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-    JButton jobsButton = new JButton("View selected student's jobs");
-    jobsButton.addActionListener(e -> showSelectedStudentJobs());
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        controls.add(new JLabel("Search ID/title:"));
+        controls.add(jobSearch);
+        controls.add(jobStatusFilter);
+        controls.add(jobSearchButton);
+        controls.add(cancelJobButton);
+        controls.add(jobRefreshButton);
 
-    JButton refreshButton = new JButton("Refresh");
-    refreshButton.addActionListener(e -> refreshStudents());
+        panel.add(controls, BorderLayout.NORTH);
+        panel.add(new JScrollPane(jobTable), BorderLayout.CENTER);
+        return panel;
+    }
 
-    controls.add(searchButton);
-    controls.add(grantButton);
-    controls.add(jobsButton);
-    controls.add(refreshButton);
-
-    panel.add(controls, BorderLayout.NORTH);
-    panel.add(new JScrollPane(studentTable), BorderLayout.CENTER);
-
-    return panel;
- }
-
-  private JPanel makeJobsPanel(){
-    JPanel panel = new JPanel(new BorderLayout());
-    JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
-
-    controls.add(new JLabel("Search ID/title:"));
-    controls.add(jobSearch);
-    controls.add(jobStatusFilter);
-
-    JButton searchButton = new JButton("Search");
-    searchButton.addActionListener(e -> showJobs());
-
-    JButton cancelButton = new JButton("Cancel selected job");
-    cancelButton.addActionListener(e -> cancelJob());
-
-    JButton refreshButton = new JButton("Refresh");
-    refreshButton.addActionListener(e -> refreshJobs());
-
-    controls.add(searchButton);
-    controls.add(cancelButton);
-    JButton detailsButton = new JButton("View job details");
-    detailsButton.addActionListener(e -> showSelectedJobDetails());
-    controls.add(detailsButton);
-    controls.add(refreshButton);
-
-    panel.add(controls, BorderLayout.NORTH);
-    panel.add(new JScrollPane(jobTable), BorderLayout.CENTER);
-
-    return panel;
-  }
-
-private void setClock() {
-    try {
-        clockSpinner.commitEdit();
+    private void setClock() {
         Date date = (Date) clockSpinner.getValue();
-
         LocalDateTime time = LocalDateTime.ofInstant(
                 date.toInstant(), ZoneId.systemDefault());
 
-        scheduler.initializeClock(actor, time.withSecond(0).withNano(0));
-        saveData();
-        refreshAll();
-
-    } catch (java.text.ParseException error) {
-        JOptionPane.showMessageDialog(this,
-                "Enter a valid date and time, for example 16/11/2026 10:00.",
-                "Invalid date or time", JOptionPane.ERROR_MESSAGE);
-
-    } catch (RuntimeException error) {
-        showError("Could not set clock", error);
+        try {
+            scheduler.initializeClock(
+                    actor, time.withSecond(0).withNano(0));
+            saveData();
+            refreshAll();
+        } catch (RuntimeException error) {
+            showError("Could not set clock", error);
+        }
     }
-}
-  
-private void showFirstClockSetup() {
-    JOptionPane.showMessageDialog(this,
-            "Choose the starting date and time on the Dashboard, "
-            + "then click Set starting time.");
-}
 
-private void advanceMinute(){
-  try{
-    scheduler.advanceMinute(actor);
-    saveData();
-    refreshAll();
-  }catch (RuntimeException error){
-    showError("Could not advance clock", error);
-  }
-}
+    private void showFirstClockSetup() {
+        int answer = JOptionPane.showConfirmDialog(
+                this,
+                clockSpinner,
+                "Set the starting date and time for the simulation",
+                JOptionPane.OK_CANCEL_OPTION);
 
+        if (answer == JOptionPane.OK_OPTION) {
+            setClock();
+        }
+    }
 
-private void approveRequest(){
-  int row = requestTable.getSelectedRow();
+    private void advanceMinute() {
+        try {
+            scheduler.advanceMinute(actor);
+            saveData();
+            refreshAll();
+        } catch (RuntimeException error) {
+            showError("Could not advance clock", error);
+        }
+    }
 
-  if(row < 0 || row >= shownRequests.size()){
-    return;
-  }
+    private void approveRequest() {
+        int row = requestTable.getSelectedRow();
 
-  String answer = JOptionPane.showInputDialog(this, "Initial minutes for this student:", "100");
+        if (row < 0 || row >= shownRequests.size()) {
+            JOptionPane.showMessageDialog(this, "Select a request first.");
+            return;
+        }
+        if (!shownRequests.get(row).getStatus().toString().equals("PENDING")) {
+            JOptionPane.showMessageDialog(
+                    this, "Only pending requests can be approved.");
+            return;
+        }
 
-  if(answer == null){
-    return;
-  }
+        try {
+            int minutes = Integer.parseInt(
+                    initialMinutesField.getText().trim());
+            if (minutes <= 0) {
+                JOptionPane.showMessageDialog(
+                        this, "Minutes must be a positive number.");
+                return;
+            }
 
-  try{
-    int minutes = Integer.parseInt(answer);
-    accounts.approveRequest(actor, shownRequests.get(row), minutes);
-    saveData();
-    refreshAll();
-  }catch(NumberFormatException error){
-    JOptionPane.showMessageDialog(this, "Enter a whole number of minutes.");
-  }catch(RuntimeException error){
-    showError("Could not approve request", error);
-  }
-}
+            accounts.approveRequest(actor, shownRequests.get(row), minutes);
+            saveData();
+            refreshAll();
+        } catch (NumberFormatException error) {
+            JOptionPane.showMessageDialog(
+                    this, "Enter a whole number of minutes.");
+        } catch (RuntimeException error) {
+            showError("Could not approve request", error);
+        }
+    }
 
-private void rejectRequest(){
-  int row = requestTable.getSelectedRow();
+    private void rejectRequest() {
+        int row = requestTable.getSelectedRow();
 
-  if(row < 0 || row >= shownRequests.size()){
-    return;
-  }
+        if (row < 0 || row >= shownRequests.size()) {
+            JOptionPane.showMessageDialog(this, "Select a request first.");
+            return;
+        }
+        if (!shownRequests.get(row).getStatus().toString().equals("PENDING")) {
+            JOptionPane.showMessageDialog(
+                    this, "Only pending requests can be rejected.");
+            return;
+        }
 
-  try {
-    accounts.rejectRequest(actor, shownRequests.get(row));
-    saveData();
-    refreshAll();
-  }catch (RuntimeException error){
-    showError("Could not reject request", error);
-  }
-}
+        try {
+            accounts.rejectRequest(actor, shownRequests.get(row));
+            saveData();
+            refreshAll();
+        } catch (RuntimeException error) {
+            showError("Could not reject request", error);
+        }
+    }
 
-private void updateRequestButtons(){
-  int row = requestTable.getSelectedRow();
+    private void grantTime() {
+        int row = studentTable.getSelectedRow();
 
-  boolean pending = row >= 0 && row < shownRequests.size() && shownRequests.get(row).getStatus().toString().equals("PENDING");
+        if (row < 0 || row >= shownStudents.size()) {
+            JOptionPane.showMessageDialog(this, "Select a student first.");
+            return;
+        }
 
-  approveButton.setEnabled(pending);
-  rejectButton.setEnabled(pending);
-}
+        String minutesText = JOptionPane.showInputDialog(
+                this, "Extra minutes:", "30");
+        if (minutesText == null) {
+            return;
+        }
 
-private void grantTime(){
-  int row = studentTable.getSelectedRow();
+        String reason = JOptionPane.showInputDialog(
+                this, "Reason for the extra time:");
+        if (reason == null) {
+            return;
+        }
 
-  if(row < 0 || row >= shownStudents.size()){
-    JOptionPane.showMessageDialog(this, "Select a student first.");
-    return; 
-  }
+        try {
+            int minutes = Integer.parseInt(minutesText);
+            Student student = shownStudents.get(row);
+            accounts.grantTime(
+                    actor, student.getUniversityId(), minutes, reason);
+            saveData();
+            refreshAll();
+        } catch (NumberFormatException error) {
+            JOptionPane.showMessageDialog(
+                    this, "Enter a whole number of minutes.");
+        } catch (RuntimeException error) {
+            showError("Could not grant time", error);
+        }
+    }
 
-  String minutesText = JOptionPane.showInputDialog(this, "Extra minutes:", "30");
+    private void showSelectedStudentJobs() {
+        int row = studentTable.getSelectedRow();
 
-  if(minutesText == null){
-    return;
-  }
+        if (row < 0 || row >= shownStudents.size()) {
+            JOptionPane.showMessageDialog(this, "Select a student first.");
+            return;
+        }
 
-  String reason = JOptionPane.showInputDialog(this, "Reason for the extra time:");
+        String id = shownStudents.get(row).getUniversityId();
+        StringBuilder text = new StringBuilder();
+        text.append("Job ID | Title | Status | GPU | Start | Charged minutes\n");
 
-  if(reason == null){
-    return;
-  }
-
-  try{
-    int minutes = Integer.parseInt(minutesText);
-    Student student = shownStudents.get(row);
-    accounts.grantTime(actor, student.getUniversityId(), minutes, reason);
-    saveData();
-    refreshStudents();
-  }catch(NumberFormatException error){
-    JOptionPane.showMessageDialog(this, "Enter a whole number of minutes.");
-  }catch(RuntimeException error){
-    showError("Could not grant time", error);
-  }
-}
-
-private void showSelectedStudentJobs(){
-  int row = studentTable.getSelectedRow();
-
-  if(row < 0 || row >= shownStudents.size()){
-    JOptionPane.showMessageDialog(this, "Select a student first.");
-    return;
-  }
-
-  String id = shownStudents.get(row).getUniversityId();
-  StringBuilder text = new StringBuilder();
-
-  text.append("Job ID | Title | Status | GPU | Start | Charged minutes\n");
-
-  for(Job job : allJobs){
-    if(job.getStudentId().equals(id)){
-      text.append(job.getJobId()).append("  ").append(job.getTitle()).append("  ").append(job.getStatus()).append("  ").append(gpuText(job))
-        .append("  ").append(formatTime(job.getStartTime())).append("  ").append(chargedMinutes(job)).append("\n");
+        for (Job job : allJobs) {
+            if (job.getStudentId().equals(id)) {
+                text.append(job.getJobId()).append("  ")
+                        .append(job.getTitle()).append("  ")
+                        .append(job.getStatus()).append("  ")
+                        .append(gpuText(job)).append("  ")
+                        .append(formatTime(job.getStartTime())).append("  ")
+                        .append(chargedMinutes(job)).append("\n");
             }
         }
 
-  if(text.toString().equals("Job ID | Title | Status | GPU | Start | Charged minutes\n")){
-    text.append("This student has no jobs.");
-  }
+        if (text.toString().equals(
+                "Job ID | Title | Status | GPU | Start | Charged minutes\n")) {
+            text.append("This student has no jobs.");
+        }
 
-  JTextArea area = new JTextArea(text.toString(), 12, 45);
-  area.setEditable(false);
+        JTextArea area = new JTextArea(text.toString(), 12, 45);
+        area.setEditable(false);
+        JOptionPane.showMessageDialog(
+                this,
+                new JScrollPane(area),
+                "Jobs for " + id,
+                JOptionPane.INFORMATION_MESSAGE);
+    }
 
-  JOptionPane.showMessageDialog(this, new JScrollPane(area), "Jobs for " + id, JOptionPane.INFORMATION_MESSAGE);
-}
+    private void cancelJob() {
+        int row = jobTable.getSelectedRow();
 
-private void cancelJob(){
-  int row = jobTable.getSelectedRow();
+        if (row < 0 || row >= shownJobs.size()) {
+            JOptionPane.showMessageDialog(this, "Select a job first.");
+            return;
+        }
 
-  if(row < 0 || row >= shownJobs.size()){
-    JOptionPane.showMessageDialog(this, "Select a job first.");
-    return;
-  }
-
-  Job job = shownJobs.get(row);
-  String status = job.getStatus().toString();
-
-  if(!status.equals("QUEUED") && !status.equals("RUNNING")){
-    JOptionPane.showMessageDialog(this, "Only queued or running jobs can be cancelled.");
-    return;
-  }
-
-  int reserved = durationForSize(job.getTaskSize());
-  int charged = 0;
-
-  if(status.equals("RUNNING")){
-    charged = minutesBetween(job.getStartTime(), state.getCurrentTime());
-  }
-
-  int returned = Math.max(0, reserved - charged);
-
-  int answer = JOptionPane.showConfirmDialog(this, "Cancel " + job.getJobId() + "?\nMinutes charged: " + charged + "\nUnused minutes returned: " +
-                                             returned, "Confirm cancellation", JOptionPane.YES_NO_OPTION);
-
-  if(answer != JOptionPane.YES_OPTION){
-    return;
-  }
-
-  String reason = JOptionPane.showInputDialog(this, "Reason for cancellation:");
-
-  if(reason == null){
-    return;
-  }
-
-  try{
-    scheduler.cancelJob(actor, job.getJobId(), reason);
-    saveData();
-    refreshAll();
-  }catch(RuntimeException error){
-    showError("Could not cancel job", error);
-  }
-}
-
-  private void refreshAll(){
-    refreshRequests();
-    refreshStudents();
-    refreshJobs();
-    refreshDashboard();
-  }
-
-  private void refreshDashboard(){
-    LocalDateTime time = state.getCurrentTime();
-
-    clockLabel.setText(time == null ? "Not set" : time.format(DATE_FORMAT));
-
-    clockSpinner.setEnabled(!state.isClockSet());
-    setClockButton.setEnabled(!state.isClockSet());
-    advanceButton.setEnabled(state.isClockSet());
-
-    int queued = 0;
-    int running = 0;
-    int completed = 0;
-    int cancelled = 0;
-  
-    for (Job job : allJobs) {
+        Job job = shownJobs.get(row);
         String status = job.getStatus().toString();
 
-        if (status.equals("QUEUED")) queued++;
-        if (status.equals("RUNNING")) running++;
-        if (status.equals("COMPLETED")) completed++;
-        if (status.equals("CANCELLED")) cancelled++;
-      }
-
-      Double utilization = null;
-
-      try {
-        utilization = scheduler.getUtilizationPercent();
-    } catch (RuntimeException error) {
+        if (!status.equals("QUEUED") && !status.equals("RUNNING")) {
+            JOptionPane.showMessageDialog(
+                    this, "Only queued or running jobs can be cancelled.");
+            return;
         }
 
-    String utilizationText = "N/A";
+        int reserved = durationForSize(job.getTaskSize());
+        int charged = 0;
+        if (status.equals("RUNNING")) {
+            charged = minutesBetween(
+                    job.getStartTime(), state.getCurrentTime());
+        }
 
-    if (utilization != null) {
-        utilizationText = String.format("%.1f%%", utilization);
+        int returned = Math.max(0, reserved - charged);
+        int answer = JOptionPane.showConfirmDialog(
+                this,
+                "Cancel " + job.getJobId() + "?\n"
+                        + "Minutes charged: " + charged + "\n"
+                        + "Unused minutes returned: " + returned,
+                "Confirm cancellation",
+                JOptionPane.YES_NO_OPTION);
+
+        if (answer != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        String reason = JOptionPane.showInputDialog(
+                this, "Reason for cancellation:");
+        if (reason == null) {
+            return;
+        }
+
+        try {
+            scheduler.cancelJob(actor, job.getJobId(), reason);
+            saveData();
+            refreshAll();
+        } catch (RuntimeException error) {
+            showError("Could not cancel job", error);
+        }
     }
 
-    countsLabel.setText("Running: " + running + "   Queued: " + queued + "   Completed: " + completed + "   Cancelled: " + cancelled + "   Busy GPUs: " 
-                        + running + "/" + state.getGpus().size() + "   Utilization: " + utilizationText);
+    private void refreshAll() {
+        refreshRequests();
+        refreshStudents();
+        refreshJobs();
+        refreshDashboard();
+    }
 
-    StringBuilder gpuText = new StringBuilder();
-    for(int gpuId = 1; gpuId <= state.getGpus().size(); gpuId++){
-      Job current = findRunningJobOnGpu(gpuId);
+    private void refreshDashboard() {
+        LocalDateTime time = state.getCurrentTime();
+        clockLabel.setText(
+                time == null ? "Not set" : time.format(DATE_FORMAT));
 
-      if(current == null){
-        gpuText.append("GPU ").append(gpuId).append(": Free\n");
-      }else{
-        int runtime = minutesBetween(current.getStartTime(), time);
-        int remaining = Math.max(0, durationForSize(current.getTaskSize()) - runtime);
+        clockSpinner.setEnabled(!state.isClockSet());
+        setClockButton.setEnabled(!state.isClockSet());
+        advanceButton.setEnabled(state.isClockSet());
 
-        LocalDateTime finish = current.getStartTime().plusMinutes(durationForSize(current.getTaskSize()));
+        int queued = 0;
+        int running = 0;
+        int completed = 0;
+        int cancelled = 0;
 
-        gpuText.append("GPU ").append(gpuId).append(": Busy with ").append(current.getJobId()).append("; remaining ").append(remaining)
-          .append(" min; finishes ").append(finish.format(DATE_FORMAT)).append("\n");
-            }
+        for (Job job : allJobs) {
+            String status = job.getStatus().toString();
+            if (status.equals("QUEUED")) queued++;
+            if (status.equals("RUNNING")) running++;
+            if (status.equals("COMPLETED")) completed++;
+            if (status.equals("CANCELLED")) cancelled++;
         }
 
-        gpuDetails.setText(gpuText.toString());
+        Double utilization = null;
+        try {
+            utilization = scheduler.getUtilizationPercent();
+        } catch (RuntimeException error) {
+        }
+
+        String utilizationText = "N/A";
+        if (utilization != null) {
+            utilizationText = String.format("%.1f%%", utilization);
+        }
+
+        runningValue.setText(String.valueOf(running));
+        queuedValue.setText(String.valueOf(queued));
+        completedValue.setText(String.valueOf(completed));
+        cancelledValue.setText(String.valueOf(cancelled));
+        busyGpuValue.setText(running + " / " + state.getGpus().size());
+        utilizationValue.setText(utilizationText);
+
+        gpuCards.removeAll();
+
+        for (int gpuId = 1; gpuId <= state.getGpus().size(); gpuId++) {
+            Job current = findRunningJobOnGpu(gpuId);
+            JPanel card = new JPanel(new GridLayout(5, 1, 2, 2));
+            card.setBorder(
+                    BorderFactory.createLineBorder(java.awt.Color.GRAY));
+            card.add(new JLabel("GPU " + gpuId));
+
+            if (current == null) {
+                card.add(new JLabel("Free"));
+                card.add(new JLabel("Current job: none"));
+                card.add(new JLabel("Remaining: —"));
+                card.add(new JLabel("Finishes: —"));
+            } else {
+                int runtime = minutesBetween(
+                        current.getStartTime(), time);
+                int remaining = Math.max(
+                        0, durationForSize(current.getTaskSize()) - runtime);
+                LocalDateTime finish = current.getStartTime().plusMinutes(
+                        durationForSize(current.getTaskSize()));
+
+                card.add(new JLabel("Busy"));
+                card.add(new JLabel(
+                        "Current job: " + current.getJobId()));
+                card.add(new JLabel("Remaining: " + remaining + " min"));
+                card.add(new JLabel(
+                        "Finishes: " + formatTime(finish)));
+            }
+
+            gpuCards.add(card);
+        }
+
+        gpuCards.revalidate();
+        gpuCards.repaint();
 
         showWaitingJobs();
         showCompletedJobs();
-  }
-
-  private Job findRunningJobOnGpu(int gpuId){
-    for(Job job : allJobs){
-      if(job.getStatus().toString().equals("RUNNING") && gpuIdMatches(job, gpuId)){
-        return job;
-      }
-    }
-    return null;
-  }
-
-  private boolean gpuIdMatches(Job job, int gpuId){
-    String assigned = String.valueOf(job.getAssignedGpuId());
-
-    return assigned.equals(String.valueOf(gpuId)) || assigned.equalsIgnoreCase("GPU" + gpuId);
-  }
-
-  private void showWaitingJobs(){
-    waitingModel.setRowCount(0);
-
-    if(!state.isClockSet()){
-      return;
+        showAllowances();
     }
 
-    for(Job job : allJobs){
-      if(!job.getStatus().toString().equals("QUEUED")){
-        continue;
-      }
+    private void showAllowances() {
+        allowanceModel.setRowCount(0);
 
-      try{
-        LocalDateTime start =  scheduler.getPredictedStart(job.getJobId());
-        LocalDateTime finish = scheduler.getPredictedFinish(job.getJobId());
+        for (Student student : allStudents) {
+            allowanceModel.addRow(new Object[] {
+                    student.getUniversityId(),
+                    student.getAllowance().getAllocated(),
+                    student.getAllowance().getUsed(),
+                    student.getAllowance().getReserved(),
+                    student.getAllowance().getAvailable()
+            });
+        }
+    }
 
-        waitingModel.addRow(new Object[] { job.getJobId(),job.getStudentId(), job.getApplicationName(), durationForSize(job.getTaskSize()),
-                                          scheduler.getQueuePosition(job.getJobId()), formatTime(start),formatTime(finish),
-                                          scheduler.getRemainingWait(job.getJobId()) + " min"});
-      }catch (RuntimeException error){
-        waitingModel.addRow(new Object[] { job.getJobId(), job.getStudentId(), job.getApplicationName(), durationForSize(job.getTaskSize()), "—",
-                                          "Unavailable", "Unavailable", "Unavailable" });
+    private Job findRunningJobOnGpu(int gpuId) {
+        for (Job job : allJobs) {
+            if (job.getStatus().toString().equals("RUNNING")
+                    && gpuIdMatches(job, gpuId)) {
+                return job;
+            }
+        }
+        return null;
+    }
+
+    private boolean gpuIdMatches(Job job, int gpuId) {
+        String assigned = String.valueOf(job.getAssignedGpuId());
+        return assigned.equals(String.valueOf(gpuId))
+                || assigned.equalsIgnoreCase("GPU" + gpuId);
+    }
+
+    private void showWaitingJobs() {
+        waitingModel.setRowCount(0);
+        if (!state.isClockSet()) {
+            return;
+        }
+
+        for (Job job : allJobs) {
+            if (!job.getStatus().toString().equals("QUEUED")) {
+                continue;
+            }
+
+            try {
+                LocalDateTime start =
+                        scheduler.getPredictedStart(job.getJobId());
+                LocalDateTime finish =
+                        scheduler.getPredictedFinish(job.getJobId());
+
+                waitingModel.addRow(new Object[] {
+                        job.getJobId(),
+                        job.getStudentId(),
+                        job.getApplicationName(),
+                        durationForSize(job.getTaskSize()),
+                        scheduler.getQueuePosition(job.getJobId()),
+                        formatTime(start),
+                        formatTime(finish),
+                        scheduler.getRemainingWait(job.getJobId()) + " min"
+                });
+            } catch (RuntimeException error) {
+                waitingModel.addRow(new Object[] {
+                        job.getJobId(),
+                        job.getStudentId(),
+                        job.getApplicationName(),
+                        durationForSize(job.getTaskSize()),
+                        "—",
+                        "Unavailable",
+                        "Unavailable",
+                        "Unavailable"
+                });
             }
         }
     }
 
-  private void showCompletedJobs(){
-    completedModel.setRowCount(0);
+    private void showCompletedJobs() {
+        completedModel.setRowCount(0);
 
-    for(Job job : allJobs){
-      if(!job.getStatus().toString().equals("COMPLETED")){
-        continue;
-      }
+        for (Job job : allJobs) {
+            if (!job.getStatus().toString().equals("COMPLETED")) {
+                continue;
+            }
 
-      int runtime = minutesBetween(job.getStartTime(), job.getFinishTime());
-      int queueWait = minutesBetween(job.getSubmissionTime(), job.getStartTime());
+            int runtime = minutesBetween(
+                    job.getStartTime(), job.getFinishTime());
+            int queueWait = minutesBetween(
+                    job.getSubmissionTime(), job.getStartTime());
 
-      completedModel.addRow(new Object[] {job.getJobId(), job.getStudentId(), job.getApplicationName(), gpuText(job), formatTime(job.getSubmissionTime()),
-                                          formatTime(job.getStartTime()),formatTime(job.getFinishTime()), runtime + " min", queueWait + " min",
-                                          runtime + " min"});
-    }
-  }
-
-  private void refreshRequests(){
-    try{
-      allRequests = accounts.getRequests(actor);
-      showRequests();
-    }catch (RuntimeException error){
-      showError("Could not load requests", error);
-    }
-  }
-
-  private void showRequests(){
-    String filter = requestFilter.getSelectedItem().toString();
-
-    shownRequests = new ArrayList<AccessRequest>();
-    requestModel.setRowCount(0);
-
-    for(AccessRequest request : allRequests){
-      String status = request.getStatus().toString();
-
-      if(!filter.equals("ALL") && !filter.equals(status)){
-        continue;
-      }
-
-      shownRequests.add(request);
-
-      requestModel.addRow(new Object[] {request.getUniversityId(),request.getName(),request.getEmail(),request.getPhone(),status,request.getPassword()});
+            completedModel.addRow(new Object[] {
+                    job.getJobId(),
+                    job.getStudentId(),
+                    job.getApplicationName(),
+                    gpuText(job),
+                    formatTime(job.getSubmissionTime()),
+                    formatTime(job.getStartTime()),
+                    formatTime(job.getFinishTime()),
+                    runtime + " min",
+                    queueWait + " min",
+                    runtime + " min"
+            });
+        }
     }
 
-    updateRequestButtons();
-  }
-
-  private void refreshStudents(){
-    try{
-      allStudents = accounts.getStudents(actor);
-      showStudents();
-    }catch (RuntimeException error){
-      showError("Could not load students", error);
+    private void refreshRequests() {
+        try {
+            allRequests = accounts.getRequests(actor);
+            showRequests();
+        } catch (RuntimeException error) {
+            showError("Could not load requests", error);
+        }
     }
-  }
 
-  private void showStudents(){
-    String search = studentSearch.getText().trim().toLowerCase();
+    private void showRequests() {
+        String filter = requestFilter.getSelectedItem().toString();
+        shownRequests = new ArrayList<AccessRequest>();
+        requestModel.setRowCount(0);
 
-    shownStudents = new ArrayList<Student>();
-    studentModel.setRowCount(0);
+        for (AccessRequest request : allRequests) {
+            String status = request.getStatus().toString();
+            if (!filter.equals("ALL") && !filter.equals(status)) {
+                continue;
+            }
 
-    for(Student student : allStudents){
-      String id = student.getUniversityId();
-
-      if(!id.toLowerCase().contains(search)){
-        continue;
-      }
-
-      shownStudents.add(student);
-
-      studentModel.addRow(new Object[]{id, student.getName(), student.getAllowance().getAllocated(), student.getAllowance().getUsed(),
-                                       student.getAllowance().getReserved(), student.getAllowance().getAvailable() });
+            shownRequests.add(request);
+            requestModel.addRow(new Object[] {
+                    request.getUniversityId(),
+                    request.getName(),
+                    request.getEmail(),
+                    request.getPhone(),
+                    status
+            });
+        }
     }
-  }
 
-  private void refreshJobs() {
+    private void refreshStudents() {
+        try {
+            allStudents = accounts.getStudents(actor);
+            showStudents();
+            showAllowances();
+        } catch (RuntimeException error) {
+            showError("Could not load students", error);
+        }
+    }
+
+    private void showStudents() {
+        String search = studentSearch.getText().trim().toLowerCase();
+        shownStudents = new ArrayList<Student>();
+        studentModel.setRowCount(0);
+
+        for (Student student : allStudents) {
+            String id = student.getUniversityId();
+            if (!id.toLowerCase().contains(search)) {
+                continue;
+            }
+
+            shownStudents.add(student);
+            studentModel.addRow(new Object[] {
+                    id,
+                    student.getName(),
+                    student.getAllowance().getAllocated(),
+                    student.getAllowance().getUsed(),
+                    student.getAllowance().getReserved(),
+                    student.getAllowance().getAvailable()
+            });
+        }
+    }
+
+    private void refreshJobs() {
         try {
             allJobs = scheduler.getVisibleJobs(actor);
             showJobs();
@@ -677,7 +854,6 @@ private void cancelJob(){
     private void showJobs() {
         String search = jobSearch.getText().trim().toLowerCase();
         String selectedStatus = jobStatusFilter.getSelectedItem().toString();
-
         shownJobs = new ArrayList<Job>();
         jobModel.setRowCount(0);
 
@@ -688,16 +864,23 @@ private void cancelJob(){
             if (!text.contains(search)) {
                 continue;
             }
-
             if (!selectedStatus.equals("ALL")
                     && !selectedStatus.equals(status)) {
                 continue;
             }
 
             shownJobs.add(job);
-
-            jobModel.addRow(new Object[] {job.getJobId(), job.getStudentId(), job.getApplicationName(), job.getTitle(), job.getTaskSize(), status,
-                                          gpuText(job), formatTime(job.getSubmissionTime()), formatTime(job.getStartTime()), formatTime(job.getFinishTime())
+            jobModel.addRow(new Object[] {
+                    job.getJobId(),
+                    job.getStudentId(),
+                    job.getApplicationName(),
+                    job.getTitle(),
+                    job.getTaskSize(),
+                    status,
+                    gpuText(job),
+                    formatTime(job.getSubmissionTime()),
+                    formatTime(job.getStartTime()),
+                    formatTime(job.getFinishTime())
             });
         }
     }
@@ -705,22 +888,19 @@ private void cancelJob(){
     private int durationForSize(model.TaskSize size) {
         String name = size.toString().toUpperCase();
 
-        if (name.contains("VERY") || name.contains("EXTRA") || name.equals("XL") || name.contains("XLARGE")) {
+        if (name.contains("VERY") || name.contains("EXTRA")
+                || name.equals("XL") || name.contains("XLARGE")) {
             return 60;
         }
-
         if (name.contains("LARGE") || name.equals("L")) {
             return 30;
         }
-
         if (name.contains("MEDIUM") || name.equals("M")) {
             return 15;
         }
-
         if (name.contains("SMALL") || name.equals("S")) {
             return 5;
         }
-
         return 0;
     }
 
@@ -730,15 +910,12 @@ private void cancelJob(){
         }
 
         String id = String.valueOf(job.getAssignedGpuId());
-
         if (id.equalsIgnoreCase("null") || id.equals("0") || id.isBlank()) {
             return "—";
         }
-
         if (id.toUpperCase().startsWith("GPU")) {
             return id;
         }
-
         return "GPU " + id;
     }
 
@@ -746,7 +923,6 @@ private void cancelJob(){
         if (time == null) {
             return "—";
         }
-
         return time.format(DATE_FORMAT);
     }
 
@@ -754,58 +930,31 @@ private void cancelJob(){
         if (start == null || finish == null) {
             return 0;
         }
-
         return (int) Math.max(0, Duration.between(start, finish).toMinutes());
     }
-  
+
     private int chargedMinutes(Job job) {
-    return scheduler.getChargedMinutes(job.getJobId());
-}
+        String status = job.getStatus().toString();
 
-  private void showSelectedJobDetails() {
-    int row = jobTable.getSelectedRow();
-
-    if (row < 0 || row >= shownJobs.size()) {
-        JOptionPane.showMessageDialog(this, "Select a job first.");
-        return;
+        if (status.equals("QUEUED")) {
+            return 0;
+        }
+        if (status.equals("RUNNING")) {
+            return minutesBetween(job.getStartTime(), state.getCurrentTime());
+        }
+        return minutesBetween(job.getStartTime(), job.getFinishTime());
     }
 
-    Job job = shownJobs.get(row);
-    String id = job.getJobId();
-
-    String text = "Job ID: " + id + "\n"
-            + "Title: " + job.getTitle() + "\n"
-            + "Application: " + job.getApplicationName() + "\n"
-            + "Description: " + job.getDescription() + "\n"
-            + "Status: " + job.getStatus() + "\n"
-            + "Runtime: " + scheduler.getRuntimeMinutes(id)
-            + " minutes\n"
-            + "Charged: " + scheduler.getChargedMinutes(id)
-            + " minutes\n";
-
-    if (job.getStatus().toString().equals("CANCELLED")) {
-        text = text
-                + "Cancelled at: "
-                + formatTime(job.getCancellationTime()) + "\n"
-                + "Cancelled by: " + job.getCancelledBy() + "\n"
-                + "Reason: " + job.getCancellationReason();
-    }
-
-    JTextArea area = new JTextArea(text, 14, 45);
-    area.setEditable(false);
-    area.setLineWrap(true);
-    area.setWrapStyleWord(true);
-
-    JOptionPane.showMessageDialog(this, new JScrollPane(area),
-            "Job details", JOptionPane.INFORMATION_MESSAGE);
-}
-  
     private boolean saveData() {
         try {
             store.save(state);
             return true;
         } catch (IOException error) {
-            JOptionPane.showMessageDialog(this, "Could not save data. You can try again.\n" + error.getMessage(),"Save failed", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Could not save data. You can try again.\n" + error.getMessage(),
+                    "Save failed",
+                    JOptionPane.ERROR_MESSAGE);
             return false;
         }
     }
@@ -819,6 +968,7 @@ private void cancelJob(){
     }
 
     private void showError(String title, RuntimeException error) {
-        JOptionPane.showMessageDialog(this, error.getMessage(), title, JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(
+                this, error.getMessage(), title, JOptionPane.ERROR_MESSAGE);
     }
 }
