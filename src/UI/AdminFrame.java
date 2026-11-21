@@ -615,6 +615,15 @@ private void cancelJob(){
 
     updateRequestButtons();
   }
+
+  private void refreshStudents(){
+    try{
+      allStudents = accounts.getStudents(actor);
+      showStudents();
+    }catch (RuntimeException error){
+      showError("Could not load students", error);
+    }
+  }
   
 
       
