@@ -568,3 +568,22 @@ private void cancelJob(){
             }
         }
     }
+
+  private void showCompletedJobs(){
+    comletedModel.setRowCount(0);
+
+    for(Job job : allJobs){
+      if(!job.getStatus().toString().equals("COMPLETED")){
+        continue;
+      }
+
+      int runtime = minutesBetween(job.getStartTime(), job.getFinishTime());
+      intqueueWait = minutesBetween(job.getSubmissionTime(), job.getStartTime());
+
+      completedModel.addRow(new Object[] {job.getJobId(), job.getStudentId(), job.getApplicationName(), gpuText(job), formatTime(job.getSubmissionTime()),
+                                          formatTime(job.getStartTime()),formatTime(job.getFinishTime()), runtime + " min", queueWait + " min",
+                                          runtime + " min"});
+    }
+  }
+
+  
