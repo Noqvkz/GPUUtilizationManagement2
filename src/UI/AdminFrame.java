@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Date;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 
 import logic.AccountService;
 import logic.Scheduler;
@@ -24,8 +25,8 @@ import storage.DataStore;
 public class AdminFrame extends JFrame {
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-  private user actor;
-  private AccountService acounts;
+  private User actor;
+  private AccountService accounts;
   private Scheduler scheduler;
   private DataStore store;
   private AppState state;
@@ -35,7 +36,7 @@ public class AdminFrame extends JFrame {
   private JButton setClockButton = new JButton("Set starting time");
   private JButton advanceButton = new JButton("+1 minute");
   private JLabel clockLabel = new JLabel();
-  private JLabel countsLabel = new JLabel():
+  private JLabel countsLabel = new JLabel();
   private JTextArea gpuDetails = new JTextArea(6, 50);
 
   private ArrayList<AccessRequest> allRequests = new ArrayList<AccessRequest>();
@@ -62,7 +63,7 @@ public class AdminFrame extends JFrame {
 
   private JTable requestTable = new JTable(requestModel);
 
-  private DefaultTableModel studentModel = new DefaultTableModel(new String[]  {"University ID", "Name", "Allocated", "Used","Reserved", "Available" , 0){
+  private DefaultTableModel studentModel = new DefaultTableModel(new String[]  {"University ID", "Name", "Allocated", "Used","Reserved", "Available"} , 0){
     public boolean isCellEditable(int row, int column){
       return false;
     }
@@ -72,7 +73,7 @@ public class AdminFrame extends JFrame {
 
   private DefaultTableModel jobModel = new DefaultTableModel(new String[] {"Job ID", "Student", "Application", "Title", "Size", "Status", "GPU", "Submitted",
                                                                            "Start", "Finish"}, 0){
-    public boolean is CellEditable(int row, int column){
+    public boolean isCellEditable(int row, int column){
       return false;
     }
   };
@@ -134,12 +135,12 @@ public class AdminFrame extends JFrame {
     logoutButton.addActionListener(e -> logout());
 
     header.add(saveButton);
-    header.add(logoutbutton);
+    header.add(logoutButton);
     add(header, BorderLayout.NORTH);
 
     JTabbedPane tabs = new JTabbedPane();
     tabs.addTab("Dashboard", makeDashboardPanel());
-    tabs.addTab("Requests", makeRequstPanel()):
+    tabs.addTab("Requests", makeRequestPanel());
     tabs.addTab("Students", makeStudentsPanel());
     tabs.addTab("All jobs", makeJobsPanel());
     add(tabs, BorderLayout.CENTER);
@@ -172,11 +173,11 @@ public class AdminFrame extends JFrame {
         JPanel overview = new JPanel(new BorderLayout(5, 5));
         overview.add(countsLabel, BorderLayout.NORTH);
 
-        gpuDetials.setEditable(false);
+        gpuDetails.setEditable(false);
         overview.add(new JScrollPane(gpuDetails), BorderLayout.CENTER);
 
         JTabbedPane detailTabs = new JTabbedPane();
-        detailTabs.addTab("GPU overview", overoview);
+        detailTabs.addTab("GPU overview", overview);
         detailTabs.addTab("Waiting jobs", new JScrollPane(waitingTable));
         detailTabs.addTab("Completed jobs", new JScrollPane(completedTable));
 
@@ -209,7 +210,7 @@ public class AdminFrame extends JFrame {
         return panel;
   }
 
-  private JPanel makeStudentPanel() {
+  private JPanel makeStudentsPanel() {
     JPanel panel = new JPanel(new BorderLayout());
     JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
@@ -239,7 +240,7 @@ public class AdminFrame extends JFrame {
     return panel;
  }
 
-  private JPanel makeJobPanel(){
+  private JPanel makeJobsPanel(){
     JPanel panel = new JPanel(new BorderLayout());
     JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
@@ -253,7 +254,7 @@ public class AdminFrame extends JFrame {
     JButton cancelButton = new JButton("Cancel selected job");
     cancelButton.addActionListener(e -> cancelJob());
 
-    JButtonrefreshButton = new JButton("Refresh");
+    JButton refreshButton = new JButton("Refresh");
     refreshButton.addActionListener(e -> refreshJobs());
 
     controls.add(searchButton);
@@ -272,11 +273,11 @@ private void setClock(){
   LocalDateTime time = LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
 
   try {
-    scheduler.initializerClock(actor, time.withSecond(0).withNano(0));
+    scheduler.initializeClock(actor, time.withSecond(0).withNano(0));
     saveData();
     refreshAll();
   } catch(RuntimeException error){
-    showError("could not set clock"), error);
+    showError("Could not set clock", error);
   }
 }
   
@@ -300,7 +301,7 @@ private void advanceMinute(){
 
 
 private void approveRequest(){
-  int row = requestTable.getSelectRow();
+  int row = requestTable.getSelectedRow();
 
   if(row < 0 || row >= shownRequests.size()){
     return;
@@ -313,12 +314,12 @@ private void approveRequest(){
   }
 
   try{
-    int minutes = Interger.parseInt(answer);
+    int minutes = Integer.parseInt(answer);
     accounts.approveRequest(actor, shownRequests.get(row), minutes);
     saveData();
     refreshAll();
   }catch(NumberFormatException error){
-    JOptionPane.showMessageDialog(this, "Enter a whole number of minute.");
+    JOptionPane.showMessageDialog(this, "Enter a whole number of minutes.");
   }catch(RuntimeException error){
     showError("Could not approve request", error);
   }
@@ -332,7 +333,7 @@ private void rejectRequest(){
   }
 
   try {
-    account.rejectRequest(actor, shownRequests.get(row));
+    accounts.rejectRequest(actor, shownRequests.get(row));
     saveData();
     refreshAll();
   }catch (RuntimeException error){
@@ -341,11 +342,11 @@ private void rejectRequest(){
 }
 
 private void updateRequestButtons(){
-  int row = requestTable.getSelectedRow():
+  int row = requestTable.getSelectedRow();
 
-  boolean pending = row >= 0 && row < shownRequests.size() && shownRequests.get(row).getStatus().toString().equal("PENDING");
+  boolean pending = row >= 0 && row < shownRequests.size() && shownRequests.get(row).getStatus().toString().equals("PENDING");
 
-  approveButton.setEnabled(pendiing);
+  approveButton.setEnabled(pending);
   rejectButton.setEnabled(pending);
 }
 
@@ -397,7 +398,7 @@ private void showSelectedStudentJobs(){
 
   for(Job job : allJobs){
     if(job.getStudentId().equals(id)){
-      text.append(job.getJobId()).append.(" ").append(job.getTitle()).append("  ").append(job.getStatus()).append("  ").append(gpuText(job))
+      text.append(job.getJobId()).append("  ").append(job.getTitle()).append("  ").append(job.getStatus()).append("  ").append(gpuText(job))
         .append("  ").append(formatTime(job.getStartTime())).append("  ").append(chargedMinutes(job)).append("\n");
             }
         }
@@ -444,7 +445,7 @@ private void cancelJob(){
     return;
   }
 
-  String reason = JOptionPane.showInputDialog(this, "Reason for Calcellation:");
+  String reason = JOptionPane.showInputDialog(this, "Reason for cancellation:");
 
   if(reason == null){
     return;
@@ -570,7 +571,7 @@ private void cancelJob(){
     }
 
   private void showCompletedJobs(){
-    comletedModel.setRowCount(0);
+    completedModel.setRowCount(0);
 
     for(Job job : allJobs){
       if(!job.getStatus().toString().equals("COMPLETED")){
@@ -578,7 +579,7 @@ private void cancelJob(){
       }
 
       int runtime = minutesBetween(job.getStartTime(), job.getFinishTime());
-      intqueueWait = minutesBetween(job.getSubmissionTime(), job.getStartTime());
+      int queueWait = minutesBetween(job.getSubmissionTime(), job.getStartTime());
 
       completedModel.addRow(new Object[] {job.getJobId(), job.getStudentId(), job.getApplicationName(), gpuText(job), formatTime(job.getSubmissionTime()),
                                           formatTime(job.getStartTime()),formatTime(job.getFinishTime()), runtime + " min", queueWait + " min",
@@ -588,7 +589,7 @@ private void cancelJob(){
 
   private void refreshRequests(){
     try{
-      allRequests = accounts.getRequests(actors);
+      allRequests = accounts.getRequests(actor);
       showRequests();
     }catch (RuntimeException error){
       showError("Could not load requests", error);
@@ -598,17 +599,17 @@ private void cancelJob(){
   private void showRequests(){
     String filter = requestFilter.getSelectedItem().toString();
 
-    showRequests = new ArrayList<AccessRequest>();
+    shownRequests = new ArrayList<AccessRequest>();
     requestModel.setRowCount(0);
 
     for(AccessRequest request : allRequests){
       String status = request.getStatus().toString();
 
-      if(!filter.equals("All") && !filter.equals(status)){
+      if(!filter.equals("ALL") && !filter.equals(status)){
         continue;
       }
 
-      showRequests.add(request);
+      shownRequests.add(request);
 
       requestModel.addRow(new Object[] {request.getUniversityId(), request.getName(), request.getEmail(), request.getPhone(), status });
     }
@@ -644,3 +645,133 @@ private void cancelJob(){
                                        student.getAllowance().getReserved(), student.getAllowance().getAvailable() });
     }
   }
+
+  private void refreshJobs() {
+        try {
+            allJobs = scheduler.getVisibleJobs(actor);
+            showJobs();
+        } catch (RuntimeException error) {
+            showError("Could not load jobs", error);
+        }
+    }
+
+    private void showJobs() {
+        String search = jobSearch.getText().trim().toLowerCase();
+        String selectedStatus = jobStatusFilter.getSelectedItem().toString();
+
+        shownJobs = new ArrayList<Job>();
+        jobModel.setRowCount(0);
+
+        for (Job job : allJobs) {
+            String status = job.getStatus().toString();
+            String text = (job.getJobId() + " " + job.getTitle()).toLowerCase();
+
+            if (!text.contains(search)) {
+                continue;
+            }
+
+            if (!selectedStatus.equals("ALL")
+                    && !selectedStatus.equals(status)) {
+                continue;
+            }
+
+            shownJobs.add(job);
+
+            jobModel.addRow(new Object[] {job.getJobId(), job.getStudentId(), job.getApplicationName(), job.getTitle(), job.getTaskSize(), status,
+                                          gpuText(job), formatTime(job.getSubmissionTime()), formatTime(job.getStartTime()), formatTime(job.getFinishTime())
+            });
+        }
+    }
+
+    private int durationForSize(model.TaskSize size) {
+        String name = size.toString().toUpperCase();
+
+        if (name.contains("VERY") || name.contains("EXTRA") || name.equals("XL") || name.contains("XLARGE")) {
+            return 60;
+        }
+
+        if (name.contains("LARGE") || name.equals("L")) {
+            return 30;
+        }
+
+        if (name.contains("MEDIUM") || name.equals("M")) {
+            return 15;
+        }
+
+        if (name.contains("SMALL") || name.equals("S")) {
+            return 5;
+        }
+
+        return 0;
+    }
+
+    private String gpuText(Job job) {
+        if (job.getStatus().toString().equals("QUEUED")) {
+            return "—";
+        }
+
+        String id = String.valueOf(job.getAssignedGpuId());
+
+        if (id.equalsIgnoreCase("null") || id.equals("0") || id.isBlank()) {
+            return "—";
+        }
+
+        if (id.toUpperCase().startsWith("GPU")) {
+            return id;
+        }
+
+        return "GPU " + id;
+    }
+
+    private String formatTime(LocalDateTime time) {
+        if (time == null) {
+            return "—";
+        }
+
+        return time.format(DATE_FORMAT);
+    }
+
+    private int minutesBetween(LocalDateTime start, LocalDateTime finish) {
+        if (start == null || finish == null) {
+            return 0;
+        }
+
+        return (int) Math.max(0, Duration.between(start, finish).toMinutes());
+    }
+  
+    private int chargedMinutes(Job job) {
+        String status = job.getStatus().toString();
+
+        if (status.equals("QUEUED")) {
+            return 0;
+        }
+
+        if (status.equals("RUNNING")) {
+            return minutesBetween(job.getStartTime(), state.getCurrentTime());
+        }
+
+        return minutesBetween(job.getStartTime(), job.getFinishTime());
+    }
+
+    private boolean saveData() {
+        try {
+            store.save(state);
+            return true;
+        } catch (IOException error) {
+            JOptionPane.showMessageDialog(this, "Could not save data. You can try again.\n" + error.getMessage(),"Save failed", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+    }
+
+    private void logout() {
+        if (saveData()) {
+            actor = null;
+            dispose();
+            loginFrame.showLogin();
+        }
+    }
+
+    private void showError(String title, RuntimeException error) {
+        JOptionPane.showMessageDialog(this, error.getMessage(), title, JOptionPane.ERROR_MESSAGE);
+    }
+}
