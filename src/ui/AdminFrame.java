@@ -157,7 +157,14 @@ public class AdminFrame extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(5, 5));
         JPanel clock = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-        clockSpinner.setEditor(new JSpinner.DateEditor(clockSpinner, "dd/MM/yyyy HH:mm"));
+        clockSpinner.setEditor(
+        new JSpinner.DateEditor(clockSpinner, "dd/MM/yyyy HH:mm"));
+
+JSpinner.DateEditor editor =
+        (JSpinner.DateEditor) clockSpinner.getEditor();
+
+editor.getFormat().setLenient(false);
+editor.getTextField().setFocusLostBehavior(JFormattedTextField.PERSIST);
 
         clock.add(new JLabel("Starting time:"));
         clock.add(clockSpinner);
@@ -267,26 +274,32 @@ public class AdminFrame extends JFrame {
     return panel;
   }
 
-private void setClock(){
-  Date date = (Date) clockSpinner.getValue();
+private void setClock() {
+    try {
+        clockSpinner.commitEdit();
+        Date date = (Date) clockSpinner.getValue();
 
-  LocalDateTime time = LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+        LocalDateTime time = LocalDateTime.ofInstant(
+                date.toInstant(), ZoneId.systemDefault());
 
-  try {
-    scheduler.initializeClock(actor, time.withSecond(0).withNano(0));
-    saveData();
-    refreshAll();
-  } catch(RuntimeException error){
-    showError("Could not set clock", error);
-  }
+        scheduler.initializeClock(actor, time.withSecond(0).withNano(0));
+        saveData();
+        refreshAll();
+
+    } catch (java.text.ParseException error) {
+        JOptionPane.showMessageDialog(this,
+                "Enter a valid date and time, for example 16/11/2026 10:00.",
+                "Invalid date or time", JOptionPane.ERROR_MESSAGE);
+
+    } catch (RuntimeException error) {
+        showError("Could not set clock", error);
+    }
 }
   
-private void showFirstClockSetup(){
-  int answer = JOptionPane.showConfirmDialog(this, clockSpinner, "Set the starting date and time for the simulation", JOptionPane.OK_CANCEL_OPTION);
-
-  if (answer == JOptionPane.OK_OPTION){
-    setClock();
-  }
+private void showFirstClockSetup() {
+    JOptionPane.showMessageDialog(this,
+            "Choose the starting date and time on the Dashboard, "
+            + "then click Set starting time.");
 }
 
 private void advanceMinute(){
