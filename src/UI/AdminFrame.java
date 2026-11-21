@@ -594,3 +594,27 @@ private void cancelJob(){
       showError("Could not load requests", error);
     }
   }
+
+  private void showRequests(){
+    String filter = requestFilter.getSelectedItem().toString();
+
+    showRequests = new ArrayList<AccessRequest>();
+    requestModel.setRowCount(0);
+
+    for(AccessRequest request : allRequests){
+      String status = request.getStatus().toString();
+
+      if(!filter.equals("All") && !filter.equals(status)){
+        continue;
+      }
+
+      showRequests.add(request);
+
+      requestModel.addRow(new Object[] {request.getUniversityId(), request.getName(), request.getEmail(), request.getPhone(), status });
+    }
+
+    updateRequestButtons();
+  }
+  
+
+      
