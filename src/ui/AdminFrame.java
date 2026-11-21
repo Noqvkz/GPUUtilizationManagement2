@@ -740,18 +740,8 @@ private void cancelJob(){
     }
   
     private int chargedMinutes(Job job) {
-        String status = job.getStatus().toString();
-
-        if (status.equals("QUEUED")) {
-            return 0;
-        }
-
-        if (status.equals("RUNNING")) {
-            return minutesBetween(job.getStartTime(), state.getCurrentTime());
-        }
-
-        return minutesBetween(job.getStartTime(), job.getFinishTime());
-    }
+    return scheduler.getChargedMinutes(job.getJobId());
+}
 
     private boolean saveData() {
         try {
