@@ -167,6 +167,9 @@ public class StudentFrame extends JFrame {
         JButton cancelButton = new JButton("Cancel selected job");
         cancelButton.addActionListener(e -> cancelSelectedJob());
         controls.add(cancelButton);
+        JButton detailsButton = new JButton("View job details");
+        detailsButton.addActionListener(e -> showSelectedJobDetails());
+        controls.add(detailsButton);
 
         panel.add(controls, BorderLayout.NORTH);
         panel.add(new JScrollPane(jobTable), BorderLayout.CENTER);
@@ -415,6 +418,44 @@ public class StudentFrame extends JFrame {
         return (int) Math.max(0, minutes);
     }
 
+    private void showSelectedJobDetails() {
+    int row = jobTable.getSelectedRow();
+
+    if (row < 0 || row >= shownJobs.size()) {
+        JOptionPane.showMessageDialog(this, "Select a job first.");
+        return;
+    }
+
+    Job job = shownJobs.get(row);
+    String id = job.getJobId();
+
+    String text = "Job ID: " + id + "\n"
+            + "Title: " + job.getTitle() + "\n"
+            + "Application: " + job.getApplicationName() + "\n"
+            + "Description: " + job.getDescription() + "\n"
+            + "Status: " + job.getStatus() + "\n"
+            + "Runtime: " + scheduler.getRuntimeMinutes(id)
+            + " minutes\n"
+            + "Charged: " + scheduler.getChargedMinutes(id)
+            + " minutes\n";
+
+    if (job.getStatus().toString().equals("CANCELLED")) {
+        text = text
+                + "Cancelled at: "
+                + formatTime(job.getCancellationTime()) + "\n"
+                + "Cancelled by: " + job.getCancelledBy() + "\n"
+                + "Reason: " + job.getCancellationReason();
+    }
+
+    JTextArea area = new JTextArea(text, 14, 45);
+    area.setEditable(false);
+    area.setLineWrap(true);
+    area.setWrapStyleWord(true);
+
+    JOptionPane.showMessageDialog(this, new JScrollPane(area),
+            "Job details", JOptionPane.INFORMATION_MESSAGE);
+}
+    
     private boolean saveData() {
         try {
             store.save(state);
