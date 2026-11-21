@@ -364,10 +364,17 @@ public class StudentFrame extends JFrame {
                 } catch (RuntimeException error) {
                     wait = "Unavailable";
                 }
-            } else if (job.getStartTime() != null
-                    && job.getSubmissionTime() != null) {
-                wait = minutesBetween( job.getSubmissionTime(), job.getStartTime()) + " min";
-            }
+           } else if (job.getStartTime() != null
+        && job.getSubmissionTime() != null) {
+
+    wait = minutesBetween(
+            job.getSubmissionTime(), job.getStartTime()) + " min";
+
+    if (status.equals("RUNNING")) {
+        predictedFinish =
+                "≈ " + formatTime(scheduler.getPredictedFinish(id));
+    }
+}
 
             shownJobs.add(job);
 
