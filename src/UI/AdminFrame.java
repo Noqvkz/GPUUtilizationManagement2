@@ -586,4 +586,11 @@ private void cancelJob(){
     }
   }
 
-  
+  private void refreshRequests(){
+    try{
+      allRequests = accounts.getRequests(actors);
+      showRequests();
+    }catch (RuntimeException error){
+      showError("Could not load requests", error);
+    }
+  }
