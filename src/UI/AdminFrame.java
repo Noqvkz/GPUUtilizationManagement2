@@ -624,6 +624,23 @@ private void cancelJob(){
       showError("Could not load students", error);
     }
   }
-  
 
-      
+  private void showStudents(){
+    String search = studentSearch.getText().trim().toLowerCase();
+
+    shownStudents = new ArrayList<Student>();
+    studentModel.setRowCount(0);
+
+    for(Student student : allStudents){
+      String id = student.getUniversityId();
+
+      if(!id.toLowerCase().contains(search)){
+        continue;
+      }
+
+      shownStudents.add(student);
+
+      studentModel.addRow(new Object[]{id, student.getName(), student.getAllowance().getAllocated(), student.getAllowance().getUsed(),
+                                       student.getAllowance().getReserved(), student.getAllowance().getAvailable() });
+    }
+  }
