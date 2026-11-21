@@ -9,6 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 
 import logic.AccountService;
 import logic.Scheduler;
@@ -191,8 +192,8 @@ public class StudentFrame extends JFrame {
         int available = allowance.getAvailable();
 
         if (duration > available) {
-            JOptionPane.showMessageDialog(this, "This job needs" + duration + "minutes, but you have only" + available + 
-                                          " minutes available.", "Not enough GPU time", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "This job needs " + duration + "minutes, but you have only " + available + 
+                                          " minutes available. ", "Not enough GPU time ", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
