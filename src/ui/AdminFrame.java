@@ -55,9 +55,12 @@ public class AdminFrame extends JFrame {
   private JButton approveButton = new JButton("Approve");
   private JButton rejectButton = new JButton("Reject");
 
-  private DefaultTableModel requestModel = new DefaultTableModel(new String[] {"University ID", "Name", "Email", "Phone", "Status"}, 0){
+  private DefaultTableModel requestModel = new DefaultTableModel(new String[] {
+            "University ID", "Name", "Email", "Phone", "Status", "Password"
+        }, 0) {
+
     public boolean isCellEditable(int row, int column) {
-      return false;
+        return false;
     }
   };
 
@@ -266,6 +269,9 @@ editor.getTextField().setFocusLostBehavior(JFormattedTextField.PERSIST);
 
     controls.add(searchButton);
     controls.add(cancelButton);
+    JButton detailsButton = new JButton("View job details");
+    detailsButton.addActionListener(e -> showSelectedJobDetails());
+    controls.add(detailsButton);
     controls.add(refreshButton);
 
     panel.add(controls, BorderLayout.NORTH);
@@ -624,7 +630,7 @@ private void cancelJob(){
 
       shownRequests.add(request);
 
-      requestModel.addRow(new Object[] {request.getUniversityId(), request.getName(), request.getEmail(), request.getPhone(), status });
+      requestModel.addRow(new Object[] {request.getUniversityId(),request.getName(),request.getEmail(),request.getPhone(),status,request.getPassword()});
     }
 
     updateRequestButtons();
@@ -756,6 +762,44 @@ private void cancelJob(){
     return scheduler.getChargedMinutes(job.getJobId());
 }
 
+  private void showSelectedJobDetails() {
+    int row = jobTable.getSelectedRow();
+
+    if (row < 0 || row >= shownJobs.size()) {
+        JOptionPane.showMessageDialog(this, "Select a job first.");
+        return;
+    }
+
+    Job job = shownJobs.get(row);
+    String id = job.getJobId();
+
+    String text = "Job ID: " + id + "\n"
+            + "Title: " + job.getTitle() + "\n"
+            + "Application: " + job.getApplicationName() + "\n"
+            + "Description: " + job.getDescription() + "\n"
+            + "Status: " + job.getStatus() + "\n"
+            + "Runtime: " + scheduler.getRuntimeMinutes(id)
+            + " minutes\n"
+            + "Charged: " + scheduler.getChargedMinutes(id)
+            + " minutes\n";
+
+    if (job.getStatus().toString().equals("CANCELLED")) {
+        text = text
+                + "Cancelled at: "
+                + formatTime(job.getCancellationTime()) + "\n"
+                + "Cancelled by: " + job.getCancelledBy() + "\n"
+                + "Reason: " + job.getCancellationReason();
+    }
+
+    JTextArea area = new JTextArea(text, 14, 45);
+    area.setEditable(false);
+    area.setLineWrap(true);
+    area.setWrapStyleWord(true);
+
+    JOptionPane.showMessageDialog(this, new JScrollPane(area),
+            "Job details", JOptionPane.INFORMATION_MESSAGE);
+}
+  
     private boolean saveData() {
         try {
             store.save(state);
