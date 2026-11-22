@@ -14,7 +14,7 @@ Students can register, submit jobs after approval, check their available GPU min
 
 ## Opening the Project in Eclipse
 
-You need Eclipse IDE for Java Developers and JDK 25. The code has been compiled and checked using JDK 25. No extra libraries or GPU hardware are needed.
+Need Eclipse IDE for Java Developers and JDK 25. The code has been compiled and checked using JDK 25. No extra libraries or GPU hardware are needed.
 
 1. Download the repository using Code then Download ZIP and extract it.
 2. In Eclipse, select File then New then Java Project.
