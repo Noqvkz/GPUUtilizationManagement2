@@ -107,12 +107,4 @@ Keep the generated sample data file in the repository for the demonstration.
 
 There are also console checks in logic.AccountService. A successful run prints PERSON 1 DEMO PASSED. The scheduler demonstration checks waiting predictions, utilization, and saving/loading before creating the 20 job sample.
 
-## Current Issues
 
-Some parts of the interface still need finishing:
-
-- Running job finish predictions are blank in the student table.
-- The administrator's student job summary shows running minutes under “Charged minutes.” The actual Used balance is settled when the job finishes or is cancelled.
-- Cancellation details are saved but do not have a details view. Registration passwords are also missing from the administrator's request table.
-- The date control accepts invalid calendar dates, so the starting date must be entered carefully. If the first clock dialog is cancelled, signing out and back in as administrator opens it again.
-- The registration window can stay open after signing in. If saving a registration fails, submitting it again reports a duplicate request. After fixing the file problem, closing the main login window retries saving.
