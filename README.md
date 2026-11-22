@@ -103,8 +103,5 @@ The sample clock is already set to 16/11/2026 10:20.
 
 The sample student usernames are 100000001, 100000002, 100000003, 100000004, and 100000005. Their password is student123.
 
-Keep the generated sample data file in the repository for the demonstration.
-
-There are also console checks in logic.AccountService. A successful run prints PERSON 1 DEMO PASSED. The scheduler demonstration checks waiting predictions, utilization, and saving/loading before creating the 20 job sample.
 
 
